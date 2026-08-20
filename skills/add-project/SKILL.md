@@ -5,7 +5,7 @@ description: Add an existing codebase to the Metonia Obsidian work context syste
 
 # Add Project
 
-Vault path: `C:/Users/imust/repos/Obsidian/metonia`
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
 
 ## Goal
 

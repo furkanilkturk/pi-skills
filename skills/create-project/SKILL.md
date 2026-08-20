@@ -5,7 +5,7 @@ description: Create a new Obsidian work project note in the Metonia vault before
 
 # Create Project
 
-Vault path: `C:/Users/imust/repos/Obsidian/metonia`
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
 
 ## Goal
 

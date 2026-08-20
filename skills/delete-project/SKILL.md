@@ -5,7 +5,7 @@ description: Remove or archive a project from the Metonia Obsidian work context 
 
 # Delete Project
 
-Vault path: `C:/Users/imust/repos/Obsidian/metonia`
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
 
 ## Goal
 

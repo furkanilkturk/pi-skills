@@ -5,7 +5,7 @@ description: Sync an existing Metonia Obsidian project note with the current cod
 
 # Update Project
 
-Vault path: `C:/Users/imust/repos/Obsidian/metonia`
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
 
 ## Goal
 

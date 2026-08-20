@@ -7,7 +7,7 @@ description: Use the Metonia Obsidian vault as durable AI context for real-world
 
 Vault path:
 
-`C:/Users/imust/repos/Obsidian/metonia`
+Discover Metonia vault: look for `metonia` repo adjacent to current project, or ask user for vault path. Default fallback: `C:/Users/imust/repos/Obsidian/metonia` (override via `METONIA_VAULT` env).
 
 ## Purpose
 

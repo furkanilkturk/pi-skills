@@ -22,8 +22,9 @@ Turn videos into learnable wiki memory, not passive summaries. Raw is source-of-
 
 1. Capture metadata and transcript.
    - Prefer YouTube captions via `yt-dlp --skip-download --write-auto-subs --sub-langs en`.
-   - Save cleaned transcript as `raw/sources/backend-engineering/NN-slug-transcript.txt`.
-2. Create one course note under `wiki/courses/backend-engineering/`.
+   - Verify caption quality: check URL/speaker/date, spot-check 30s vs audio; if low confidence note `transcript_type: auto (unverified)` in frontmatter.
+   - Save cleaned transcript as `raw/sources/<course>/NN-slug-transcript.txt` (e.g. `backend-engineering/` or new course folder).
+2. Create one course note under `wiki/courses/<course>/` (match raw folder).
 3. Add or update **living** concept pages for reusable ideas in `wiki/concepts/`.
    - If `wiki/concepts/<Topic>.md` doesn't exist → create it (what it is + minimal example + when to use).
    - If it exists → append new evidence/usage, don't overwrite. Keep per-project or per-source subsections so the page grows (e.g. `### MechFlow — zod/mini via ROP`).
@@ -33,7 +34,7 @@ Turn videos into learnable wiki memory, not passive summaries. Raw is source-of-
 
 ## Learning-First Note Template
 
-Every backend video note is a **full lesson from raw** — teach from zero, no loss. Raw is source-of-truth; lesson is the video as a readable course.
+Every video note is a **full lesson from raw** — adaptive depth: short/low-value videos get a 5-bullet summary, core/durable videos get the full 10-section lesson (don't overproduce). Raw is source-of-truth; lesson is the video as a readable course. Coverage is draft until verified.
 
 Use this template (keep recall short and separate in Backend Recall Journal):
 
