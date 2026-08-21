@@ -33,6 +33,18 @@ When the user says to create or resume a work project:
 5. Then inspect the actual repo files for the coding task.
 6. Update the project folder only with durable context: decisions, commands, architecture, recurring bugs, and lessons. Never create `skills.md`/`workflows.md` unless the project actually needs them.
 
+## Task Modes
+
+Before real work, announce **Quick**, **Standard**, or **Critical** with one reason, and read the canonical policy: root `AGENTS.md` (Quick/Standard/Critical table) + `wiki/projects/Work Context System.md` (full workflow).
+
+- **Quick** — mechanical, low-risk, one-file work (typo, copy, one-line fix, self-contained test): write directly — no reviewer, no fan-out, no subagent.
+- **Standard** — behavior change or multi-file but not Critical: one writer + one independent reviewer.
+- **Critical** — auth, money/billing, account or data deletion, schema/data migrations, production deploy or prod data, security/privacy/data-loss: writer + independent review + explicit human approval + rollback.
+
+One writer per worktree in every mode; read-only recon/review may run in parallel. If unsure or risk rises, escalate (bump the mode and get human sign-off) rather than silently downgrade.
+
+Roles, not vendors: **Writer** implements, **Reviewer** checks independently. Writer = strongest available coding model; Reviewer = a different provider/model/family when available, else the same model on fresh context — never block on a second model. Codex, Claude, OpenCode Go, or any mixed availability works. A user's explicit model choice wins. Keep vendor/model names in session notes. (Sol + Luna is one known pairing example, not a requirement.)
+
 ## Boundaries
 
 - Never store secrets, tokens, passwords, or private customer data.
