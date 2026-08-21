@@ -19,7 +19,7 @@ Ask the user, preferably in one grouped questionnaire:
 2. Project name?
 3. Repo path, if known? If new repo, where should it be created?
 4. Goal: what does this app/project do?
-5. Stack: frontend, backend, database, deployment?
+5. Product & system surfaces: what user/product flows exist, and which apply — UI/design, client, server, data, integrations, deployment?
 6. Structure: for **Personal**, default to the MechFlow-style layout documented
    on the [[Personal]] page (`src/lib/{client,server,shared}` + feature routes
    with `<feature>.remote.ts` + `.svelte.ts` state/controller modules) unless
@@ -48,9 +48,9 @@ Always include links:
 
 - company page: `[[Frostium]]`, `[[Yuppo]]`, `[[Freelance]]`, or `[[Personal]]`
 - `[[Work Context System]]`
-- living concepts when obvious: `[[Zod]]`, `[[Drizzle ORM]]`, `[[HTTP]]`, `[[Database Engineering]]`, etc.
+- living concepts when obvious (e.g. `[[Zod]]`, `[[Drizzle ORM]]`, `[[HTTP]]`, `[[Database Engineering]]`) — only when the idea is durable and reusable across projects.
 
-If a linked concept doesn't exist yet, create `wiki/concepts/<Concept>.md` as a living stub (what it is + minimal example).
+If a linked concept doesn't exist yet and it is durable/reusable, create `wiki/concepts/<Concept>.md` as a living stub (what it is + minimal example). Skip one-off or project-specific facts — those stay in `log.md`.
 
 ## Git Init (when requested)
 

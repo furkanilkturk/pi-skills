@@ -22,7 +22,7 @@ Delete or archive a project note safely while preserving reusable lessons if the
 3. If keeping lessons, extract reusable parts to one of:
    - company page `Lessons Learned`;
    - `wiki/projects/Work Lessons.md` if it exists or should be created;
-   - relevant concept page, e.g. `[[Caching]]`, `[[HTTP]]`, `[[Database Engineering]]`.
+   - relevant concept page (e.g. `[[Code Review]]`, `[[Expo]]`, `[[RevenueCat]]`, `[[HTTP]]`, `[[Database Engineering]]`) — only for durable, reusable ideas, never one-off or project-specific facts.
 4. Delete or move the project folder.
 5. Update company index, `wiki/Index.md`, and `wiki/Log.md`.
 

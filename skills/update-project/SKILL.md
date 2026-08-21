@@ -20,6 +20,7 @@ Update-project should sync **durable context** from repo changes:
 - changed commands;
 - changed dependencies/frameworks;
 - new API/auth/database/cache/queue behavior;
+- user/product flows, UI/design accessibility, or client/server/data/integrations/operations changes;
 - decisions implied by commits;
 - recurring bugs or lessons;
 - TODOs/open questions worth tracking.
@@ -45,13 +46,14 @@ Do not summarize every commit. Do not copy code.
 
 ## Living Concepts Sync
 
-If repo now uses a new lib/tech or uses an existing one differently, update `wiki/concepts/<Tech>.md`:
-- Create if missing, or append `### <Project> — how we use <Tech>` subsection.
+When repo work surfaces a durable, reusable idea — engineering, product, design, business, or research — update `wiki/concepts/<Topic>.md`:
+- Create if missing (what it is + minimal example/evidence), or append `## <Project> — how we use/learned <Topic>` subsection + backlink (match the page's existing project-heading level; default `##`).
 - Keep concept as single live page shared across projects + transcripts.
+- One-off or project-specific facts stay in `log.md`; skip concept creation for tiny fixes.
 
 ## Suggested Project Folder Sections
 
-- `index.md`: Goal, Context, Architecture, Important Folders, Commands, Backend Lens (links to living concepts)
+- `index.md`: Goal, Context, Architecture, Important Folders, Commands, Knowledge Lens (links to living concepts)
 - `rules.md`: Rules / Preferences, What Not to Change, AI Instructions
 - `log.md`: Decisions, Open Questions, Build Log, Lessons Learned
 - `skills.md`: optional — only if project needs custom AI skills/workflows (`workflows.md` for human workflows)

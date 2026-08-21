@@ -28,6 +28,7 @@ Run a vault plan exactly as written, keeping statuses updated, so any model can 
    - fill the plan's Success Criteria checkboxes;
    - set plan `status: done`;
    - append one line to project `log.md` Build Log (what shipped, deviations);
+   - if the work produced a durable, reusable idea (not a one-off fix), create/append the living concept in `wiki/concepts/<Topic>.md` with a `## <Project> — how we use/learned <Topic>` subsection + backlink (match the page's existing project-heading level; default `##`); otherwise note project-specific facts in `log.md`;
    - update `synced_commit`/`synced_at` in project `index.md` if repo work happened.
 
 ## Token Discipline

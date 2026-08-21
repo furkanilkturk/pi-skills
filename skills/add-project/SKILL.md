@@ -23,7 +23,7 @@ Create a project note for an existing repo by inspecting the codebase first, the
    - folder/file structure conventions (where UI, server, shared code, state,
      controllers, tests live — name the actual folders);
    - test/build commands if obvious;
-   - important backend boundaries: API, DB, cache, queue, auth, deployment.
+   - important system boundaries: user/product flows, UI/design accessibility, client/server, data, auth, integrations, operations — whichever apply.
 4. Summarize what was inferred.
 5. Ask the user to confirm/fill gaps:
    - project name;
@@ -47,10 +47,11 @@ section:
 
 ## Living Concepts Update
 
-When project uses a tech/lib (Zod, Drizzle, Better Auth, Paraglide, etc.):
-- If `wiki/concepts/<Tech>.md` missing → create living concept page (what it is + minimal example).
-- If exists → append `### <Project> — how we use <Tech>` subsection + backlink, preserve other projects' sections.
-- Projects only link `[[Tech]]`, they don't duplicate the explanation.
+When the project surfaces a durable, reusable idea — engineering, product, design, business, or otherwise — update the concept:
+- If `wiki/concepts/<Topic>.md` missing → create living concept page (what it is + minimal example/evidence).
+- If exists → append `## <Project> — how we use/learned <Topic>` subsection + backlink (match the page's existing project-heading level; default `##`), preserve other projects' sections.
+- Projects only link `[[Topic]]`, they don't duplicate the explanation.
+- One-off fixes and project-specific facts stay in the project `log.md` — don't create a concept for a tiny fix.
 
 ## What to Store
 
@@ -63,7 +64,7 @@ Store durable context only:
 - AI guardrails;
 - decisions;
 - recurring bugs;
-- links to living concepts (backend + tech).
+- links to living concepts (domain + tech).
 
 Do not copy large source files. Do not store secrets.
 

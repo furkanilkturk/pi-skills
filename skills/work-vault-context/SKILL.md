@@ -40,25 +40,24 @@ When the user says to create or resume a work project:
 - Existing repo style beats generic advice.
 - Small code fixes do not need notes unless they teach a reusable lesson.
 
-## Living Concepts (Tech/Lib Knowledge)
+## Living Concepts
 
-`wiki/concepts/` holds **living** tech pages (e.g. [[Zod]], [[Drizzle ORM]], [[Better Auth]], [[Paraglide JS]]). When a project uses a tech:
+`wiki/concepts/` holds **living** pages for durable, reusable ideas across any domain — engineering, product, design, business, research, or otherwise (e.g. [[Zod]], [[Drizzle ORM]], [[Better Auth]], [[Paraglide JS]]). When a project uses or learns something durable:
 
-1. If `wiki/concepts/<Tech>.md` doesn't exist → create it: What it is + minimal example + link to official docs.
-2. If it exists → **append** a `### <Project> — how we use <Tech>` subsection + backlink to `[[<Project>/index|Project]]`. Never overwrite other projects' sections.
+1. If `wiki/concepts/<Topic>.md` doesn't exist → create it: What it is + minimal example/evidence + link to the source.
+2. If it exists → **append** a `## <Project> — how we use/learned <Topic>` subsection + backlink to `[[<Project>/index|Project]]` (match the page's existing project-heading level; default `##`). Never overwrite other projects' sections.
 3. Projects only **link** to the concept (`[[Zod]]`), they don't own the explanation.
+4. Skip one-off fixes and project-specific facts — those stay in the project `log.md`, not a concept.
 
 This keeps one canonical page that grows with every project and transcript. Also handle new topics that need a new folder: if topic doesn't fit existing `wiki/concepts/` or `wiki/courses/`, create `wiki/concepts/<NewTopic>/` or `wiki/courses/<new-course>/` and add to [[Index]].
 
 ## Learning Links
 
-When coding reveals a backend concept, link it to the learning vault:
+When project work reveals a durable concept, link it to the learning vault (balanced examples below; any living `[[Concept]]` works):
 
-- `[[HTTP]]`
-- `[[Web Server]]`
-- `[[Database Engineering]]`
-- `[[Caching]]`
-- `[[Proxy]]`
-- `[[Reverse Proxy]]`
-- `[[Transport Layer Security]]`
-- `[[Backend Engineering]]`
+- `[[Code Review]]` — engineering/process
+- `[[CSS]]` — web/design
+- `[[Expo]]` — mobile
+- `[[RevenueCat]]` — business/billing
+- `[[Artificial Intelligence]]` — AI/research
+- `[[HTTP]]`, `[[Database Engineering]]` — backend/data
