@@ -37,9 +37,11 @@ When the user says to create or resume a work project:
 
 Before real work, announce **Quick**, **Standard**, or **Critical** with one reason, and read the canonical policy: root `AGENTS.md` (Quick/Standard/Critical table) + `wiki/projects/Work Context System.md` (full workflow).
 
-- **Quick** — mechanical, low-risk, one-file work (typo, copy, one-line fix, self-contained test): write directly — no reviewer, no fan-out, no subagent.
+- **Quick** — mechanical, low-risk, one-file work (typo, copy, one-line fix, self-contained test): one capable writer, no independent reviewer or fan-out. Write directly unless company/project rules require the parent/main agent to delegate the write.
 - **Standard** — behavior change or multi-file but not Critical: one writer + one independent reviewer.
 - **Critical** — auth, money/billing, account or data deletion, schema/data migrations, production deploy or prod data, security/privacy/data-loss: writer + independent review + explicit human approval + rollback.
+
+Stricter company/project rules always win over this default.
 
 One writer per worktree in every mode; read-only recon/review may run in parallel. If unsure or risk rises, escalate (bump the mode and get human sign-off) rather than silently downgrade.
 
