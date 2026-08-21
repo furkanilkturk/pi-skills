@@ -5,7 +5,7 @@ description: Create a new Obsidian work project note in the Metonia vault before
 
 # Create Project
 
-Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/obsidian/metonia)
 
 ## Goal
 
@@ -20,9 +20,15 @@ Ask the user, preferably in one grouped questionnaire:
 3. Repo path, if known? If new repo, where should it be created?
 4. Goal: what does this app/project do?
 5. Stack: frontend, backend, database, deployment?
-6. Important rules/preferences?
-7. What should AI not change without asking?
-8. Git/GitHub: init git now? If yes, private or public? (default: private)
+6. Structure: for **Personal**, default to the MechFlow-style layout documented
+   on the [[Personal]] page (`src/lib/{client,server,shared}` + feature routes
+   with `<feature>.remote.ts` + `.svelte.ts` state/controller modules) unless
+   the user opts out. For companies, ask or read the company page **Project
+   Structure** section; if empty, note "follow existing repo" and capture later
+   via the add-project skill (say "add project").
+7. Important rules/preferences?
+8. What should AI not change without asking?
+9. Git/GitHub: init git now? If yes, private or public? (default: private)
 
 ## Output Path
 
@@ -36,7 +42,7 @@ Each project is a folder:
 
 ## Template
 
-Use `wiki/projects/_templates/Work Project Template.md` as the base. Create `index.md` + `rules.md` + `log.md`. Only create `skills.md` if the project actually needs custom AI workflows — skip otherwise.
+Use `wiki/projects/_templates/Work Project Template.md` as the base. Create `index.md` + `rules.md` + `log.md`. Only create `skills.md` if the project needs custom AI skills, `workflows.md` only for human workflows — skip both otherwise.
 
 Always include links:
 
@@ -54,7 +60,7 @@ If user wants git/GitHub for a new project:
 2. Create initial commit (README, .gitignore) if repo is empty.
 3. `gh repo create <name> --private|--public --source . --push` (prefer `gh` if available, else ask for remote URL).
 4. Default to **private** unless user says public.
-5. Record repo URL in `index.md` frontmatter `repo:` field.
+5. Record repo URL in `index.md` frontmatter `repo_url:` field.
 
 Skip git entirely if project is docs-only or user says no.
 

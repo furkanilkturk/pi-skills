@@ -5,7 +5,7 @@ description: Sync an existing Metonia Obsidian project note with the current cod
 
 # Update Project
 
-Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/obsidian/metonia)
 
 ## Goal
 
@@ -54,7 +54,7 @@ If repo now uses a new lib/tech or uses an existing one differently, update `wik
 - `index.md`: Goal, Context, Architecture, Important Folders, Commands, Backend Lens (links to living concepts)
 - `rules.md`: Rules / Preferences, What Not to Change, AI Instructions
 - `log.md`: Decisions, Open Questions, Build Log, Lessons Learned
-- `skills.md`: optional — only if project needs custom AI skills/workflows
+- `skills.md`: optional — only if project needs custom AI skills/workflows (`workflows.md` for human workflows)
 
 ## Sync Frequency
 

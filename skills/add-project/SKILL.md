@@ -5,7 +5,7 @@ description: Add an existing codebase to the Metonia Obsidian work context syste
 
 # Add Project
 
-Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/Obsidian/metonia)
+Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/obsidian/metonia)
 
 ## Goal
 
@@ -20,6 +20,8 @@ Create a project note for an existing repo by inspecting the codebase first, the
    - README/package/config files;
    - framework/language;
    - app entry points;
+   - folder/file structure conventions (where UI, server, shared code, state,
+     controllers, tests live — name the actual folders);
    - test/build commands if obvious;
    - important backend boundaries: API, DB, cache, queue, auth, deployment.
 4. Summarize what was inferred.
@@ -29,7 +31,19 @@ Create a project note for an existing repo by inspecting the codebase first, the
    - team rules;
    - forbidden changes;
    - production/deploy notes if safe to store.
-6. Create the project folder `wiki/projects/<Company>/<Project>/` with `index.md` + `rules.md` + `log.md` from `wiki/projects/_templates/Work Project Template.md`. Only add `skills.md` if project needs custom workflows.
+6. Create the project folder `wiki/projects/<Company>/<Project>/` with `index.md` + `rules.md` + `log.md` from `wiki/projects/_templates/Work Project Template.md`. Only add `skills.md` if the project needs custom AI skills, `workflows.md` only for human workflows.
+
+## Structure Conventions
+
+Record the repo's real layout in the project `index.md` under **Important
+Folders** (tree + one-line purpose each). Then check the company page
+(`Frostium.md`, `Yuppo.md`, `Freelance.md`, `Personal.md`) **Project Structure**
+section:
+
+- If empty → propose filling it from this repo (ask first for company repos;
+  Personal defaults to the MechFlow-style layout documented on [[Personal]]).
+- If present → note where this repo follows or deviates from it.
+- Never copy one company's conventions into another company's page.
 
 ## Living Concepts Update
 

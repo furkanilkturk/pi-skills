@@ -9,7 +9,10 @@ Private collection of Pi agent skills for the Metonia vault + work context syste
 - `add-project` — add existing codebase (inspect repo, then create context)
 - `update-project` — sync project context from repo changes (diff from synced_commit)
 - `delete-project` — archive/delete project context, preserve lessons
-- `video-learning` — ingest any video/transcript → raw + full teach-from-zero lesson + living concepts + recall
+- `create-plan` — turn a goal into a plan file executable by a weak model with no chat memory
+- `execute-plan` — run a vault plan step by step with strict status tracking
+
+Learning skills (`video-learning`, `doc-learning`) live in the Metonia vault repo under `.pi/skills/`.
 
 ## Install
 
@@ -30,18 +33,13 @@ ln -s "$(pwd)/skills" ~/.pi/agent/skills  # or copy
 
 ## Usage with Metonia vault
 
-Vault: `C:/Users/imust/repos/Obsidian/metonia`
+Vault: `C:/Users/imust/repos/obsidian/metonia`
 
 ```text
-/skill:create-project
-/skill:add-project
-/skill:update-project
-/skill:delete-project
+create project / add project / update project / delete project
 # work context auto-loads via work-vault-context when you mention Frostium/Yuppo/etc.
-/skill:video-learning
+create plan / execute plan
 ```
-
-All skills are versioned here; Metonia vault's `.pi/skills/` is a mirror for portability.
 
 ## Privacy
 

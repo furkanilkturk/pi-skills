@@ -7,7 +7,7 @@ description: Use the Metonia Obsidian vault as durable AI context for real-world
 
 Vault path:
 
-Discover Metonia vault: look for `metonia` repo adjacent to current project, or ask user for vault path. Default fallback: `C:/Users/imust/repos/Obsidian/metonia` (override via `METONIA_VAULT` env).
+Discover Metonia vault: look for `metonia` repo adjacent to current project, or ask user for vault path. Default fallback: `C:/Users/imust/repos/obsidian/metonia` (override via `METONIA_VAULT` env).
 
 ## Purpose
 
@@ -19,7 +19,7 @@ Use Obsidian as durable context for coding agents. Company/project rules live in
 - Yuppo: `wiki/projects/Yuppo/`
 - Freelance: `wiki/projects/Freelance/`
 - Personal: `wiki/projects/Personal/`
-- Template: `wiki/projects/_templates/Work Project Template.md` (folder: index.md + rules.md + log.md, skills.md optional)
+- Template: `wiki/projects/_templates/Work Project Template.md` (folder: index.md + rules.md + log.md, skills.md/workflows.md optional)
 - System: `wiki/projects/Work Context System.md`
 
 ## Workflow
@@ -31,7 +31,7 @@ When the user says to create or resume a work project:
 3. Read the company index: `Frostium.md`, `Yuppo.md`, `Freelance.md`, or `Personal.md`.
 4. If project folder exists, read `index.md` + `rules.md` + `log.md` (+ `skills.md` only if present). If not, create folder from template.
 5. Then inspect the actual repo files for the coding task.
-6. Update the project folder only with durable context: decisions, commands, architecture, recurring bugs, and lessons. Never create `skills.md` unless project actually needs custom skills.
+6. Update the project folder only with durable context: decisions, commands, architecture, recurring bugs, and lessons. Never create `skills.md`/`workflows.md` unless the project actually needs them.
 
 ## Boundaries
 
