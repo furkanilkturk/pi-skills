@@ -173,3 +173,4 @@ if ($failures.Count -gt 0) {
 
 $caseCount = $codingCases.Count + $learningCases.Count
 Write-Host "SKILLS CLEAN ($($skillDirectories.Count) skills, $caseCount routing cases)"
+exit 0
