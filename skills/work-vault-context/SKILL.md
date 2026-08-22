@@ -14,6 +14,29 @@ machine-specific fallback.
 Use a local wiki as durable context for coding agents. Company/project rules
 live in the vault; repo code lives wherever the project is.
 
+## Capability Profiles
+
+Use the Pi fleet by capability, not by the parent session model:
+
+- **Quick recon:** fresh `scout` or `researcher` — Luna/low, read-only facts.
+- **Quick execution:** `worker` with a per-run Luna/medium override — mechanical,
+  low-risk, reversible, one-file work with an exact check. No formal plan or
+  independent review unless stricter project rules require them.
+- **Bounded low-risk Standard:** Luna/medium may execute an exact plan of at most
+  three files with deterministic checks, no sensitive domain, no human gate,
+  and no effect beyond `none` or `local-build`; Terra/medium reviews fresh.
+- **Standard execution and review:** fresh `worker` and `reviewer` —
+  Terra/medium. The worker owns one write set; the reviewer inspects the actual
+  diff and evidence read-only.
+- **Critical decision:** `oracle` — Sol/high, only for bounded questions with
+  explicit alternatives, risk, and acceptance criteria.
+
+The parent remains Sol/high for orchestration. Persist facts, decisions,
+evidence paths, and acceptance criteria in the vault; do not assume a child
+inherits chat memory. A model profile is a capability contract, not permission
+to broaden scope. Ambiguity, a mismatch, a failed safety check, or an expanding
+write set escalates the mode and removes Luna write eligibility.
+
 ## Context Folders
 
 - Company index: `wiki/projects/<Company>/<Company>.md`
@@ -44,6 +67,15 @@ When the user says to create or resume a work project:
 7. Update the project folder only with durable context: decisions, commands,
    architecture, recurring bugs, and lessons. Never create `skills.md` or
    `workflows.md` unless the project actually needs them.
+8. For planned implementation, record the executor profile, base commit, exact
+   write set, verification commands, retry safety, and whether fresh review is
+   required. Treat a worker handoff as implementation evidence, not completion:
+   accept only after named checks pass and required reviewer blockers are
+   resolved or explicitly deferred by the user.
+
+This skill routes coding projects only. Document and video ingestion use
+`doc-learning` or `video-learning`; those vault-learning workflows do not
+inherit coding planner/worker/reviewer requirements.
 
 ## Task Modes
 

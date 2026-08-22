@@ -15,6 +15,33 @@ Turn a goal into a plan file that a **weak model with no chat memory** can
 execute step by step. The plan is the memory; the executor only needs the plan
 plus what it names.
 
+## Capability Profiles and Fresh Handoff
+
+This is a coding planner/orchestrator skill. The parent Sol/high session authors
+and challenges the plan; it does not implement later work merely because it
+knows the answer. Children start fresh and receive only the approved plan and
+the files it names.
+
+Map the canonical task mode to Pi by capability:
+
+- **Quick:** normally needs no formal plan. Use a fresh `worker` with a per-run
+  `openai-codex/gpt-5.6-luna` / medium override for a mechanical, low-risk,
+  reversible change that stays in one file and has an exact check.
+- **Bounded low-risk Standard:** Luna/medium may execute when the plan has an
+  exact write set of at most three files, no architecture/auth/security/data
+  migration/concurrency decision, no external effect beyond `none` or
+  `local-build`, no human gate, and deterministic checks. Fresh Terra/medium
+  review is still required.
+- **Standard:** use the default fresh `worker` and `reviewer`, both Terra/medium.
+- **Critical:** use Terra/medium for implementation and review. Use `oracle`
+  (Sol/high) only for a bounded critical decision with alternatives, risks, and
+  acceptance criteria.
+
+Use `scout` or `researcher` (Luna/low) only for bounded read-only evidence. A
+model route never broadens scope. Any ambiguity, plan/repo mismatch, unexpected
+dependency, failed safety check, or expanding write set removes Luna
+eligibility; stop and return evidence instead of exploring.
+
 ## Workflow
 
 1. Identify the company and project folder
@@ -27,9 +54,12 @@ plus what it names.
    Ask only decision-changing questions about goal, scope, constraints, done
    definition, or adaptive execution. Strict is the default.
 4. Write `wiki/projects/<Company>/<Project>/plans/<slug>.md` from
-   `wiki/projects/_templates/Plan Template.md`. Set frontmatter
-   `execution_mode: strict`; use `adaptive` only after explicit user selection
-   or approval and record that approval in the Execution Log.
+   `wiki/projects/_templates/Plan Template.md`. Set `plan_schema: 2`, a
+   non-empty `base_commit` (or `no-repo`), `risk`, provider-neutral
+   `executor_profile` and `review_profile`, and `execution_mode: strict`.
+   Use `adaptive` only after explicit user selection or approval and record that
+   approval in the Execution Log. The Pi host maps an eligible bounded/low-risk
+   executor to Luna/medium; keep model or provider names out of the plan.
 5. Set plan frontmatter `status: ready` when the user approves it.
 
 ## Executability Rules
@@ -44,12 +74,39 @@ it:
   visible output). No "works correctly".
 - **No cross-step memory** — if step 3 needs something from step 1, restate it
   or point at the produced file.
-- **Failure path** — retry once, then mark blocked and stop. Never improvise
-  scope.
+- **Failure path** — classify every retry as `safe-once` or `never` and state
+  idempotence. Retry only when `retry: safe-once` and `idempotent: true`; the
+  single retry may escalate an eligible Luna execution to Terra. Use `never`
+  for deploys, submissions, billing, destructive data operations, and other
+  external effects. Otherwise mark blocked and stop; never improvise scope.
+- **Acceptance contract** — name the required commands, expected result, and
+  whether a fresh `reviewer` must inspect the final diff. Completion means the
+  checks pass and required review findings are resolved or explicitly deferred
+  by the user; it never means merely that files were edited.
 - **Execution boundary** — strict plans block on any mismatch without off-plan
   exploration or writes. Adaptive plans still forbid off-plan implementation
   writes and use only the controlled amendment flow in the template.
+- **Step packets** — when the plan would exceed about 150 lines, keep a compact
+  dependency header, put shared evidence in one `plans/<slug>/recon.md`, and put
+  executable work in `plans/<slug>/steps/<nn>-<slug>.md`. Repeat exact reads,
+  files, checks, retry, idempotence, external effects, and human gates in every
+  packet; do not duplicate the reconnaissance narrative.
 - Max ~10 steps; bigger goals become multiple plans (`<slug>-phase2`).
+
+## Routing and Review
+
+- Include scout evidence paths in the plan instead of copying a conversational
+  summary.
+- Route only an eligible Quick or bounded low-risk Standard write to
+  `worker` with the Luna/medium per-run override. Give it the approved plan or
+  task contract, exact write set, stop conditions, and checks.
+- Route every other Standard or Critical implementation to the default
+  Terra/medium `worker`. One worker owns a write set or worktree at a time.
+- Quick needs no independent review unless stricter project rules require it.
+  Standard and Critical require a fresh Terra/medium `reviewer` that inspects
+  the actual diff, controls, and validation evidence without editing.
+- Escalate an unresolved critical decision to `oracle`/Sol-high rather than
+  asking a worker to invent scope.
 
 ## Context Discipline
 
