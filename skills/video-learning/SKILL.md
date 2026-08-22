@@ -23,48 +23,38 @@ This is an Obsidian/vault learning workflow, not a coding workflow. Do not
 create a work-project plan or invoke the coding planner → executor → reviewer
 chain merely because a video teaches code.
 
-Use one vault writer. A short, clean transcript can use Luna/medium for the
-complete ingest. Prefer Terra/medium for a long, dense, highly technical, or
-low-confidence transcript. Use Luna/low only for bounded metadata, caption, or
+Use one vault writer. Route a short, clean, high-confidence transcript as
+`bounded-learning`; route a long, dense, highly technical, uncertain, or
+low-confidence transcript as `deep-learning`. Use `efficient-read` only for bounded metadata, caption, or
 source lookup. Independent review is optional unless the user requests
 publication-grade accuracy; transcript confidence, source links, and spot
 checks are the default evidence.
 
 ### Pi orchestration
 
-In a parent session with the `subagent` tool, classify the transcript before
-vault writes and launch exactly one fresh `worker`. Explicitly inject
-`video-learning` because the builtin worker does not inherit skills. Use
-`openai-codex/gpt-5.6-luna:medium` only for a short, clean, high-confidence
-transcript; otherwise use `openai-codex/gpt-5.6-terra:medium`. Uncertain
-classification goes to Terra. When this skill is injected into the worker,
-ingest directly and do not delegate again.
+In a parent session, load `metonia-orchestrator`, classify the transcript before
+vault writes, and call `metonia_delegate` exactly once. Explicitly inject
+`video-learning`. Uncertain classification uses `deep-learning`. When this
+skill is injected into the child, ingest directly and do not delegate again.
 
 ```js
 {
-  workflowScript: `return runs.run("ingest", {
-    agent: "worker",
-    task: "Load and follow video-learning. Ingest <VIDEO_OR_TRANSCRIPT> into the Metonia vault at <VAULT_PATH>. Preserve transcript evidence, write one lesson, update living concepts and required navigation/log files, then report changed files and transcript spot checks.",
-    acceptance: {
-      level: "checked",
-      criteria: ["Transcript evidence is preserved and the lesson is linked to its concepts"],
-      evidence: ["changed-files", "source-url", "transcript-confidence", "spot-checks"]
-    }
-  })`,
+  capability: "bounded-learning",
+  task: "Ingest <VIDEO_OR_TRANSCRIPT>. Preserve transcript evidence, write one lesson, update living concepts and required navigation/log files, then report changed files and transcript spot checks.",
   skill: "video-learning",
-  model: "openai-codex/gpt-5.6-luna:medium",
-  context: "fresh",
   cwd: "<VAULT_PATH>",
-  async: false
+  criteria: ["Transcript evidence is preserved and the lesson is linked to its concepts"],
+  evidence: ["changed-files", "source-url", "transcript-confidence", "spot-checks"],
+  controls: { sourceCount: 1, sourceConfidence: "high", dense: false, highlyTechnical: false }
 }
 ```
 
-Replace the shown Luna model with `openai-codex/gpt-5.6-terra:medium` for the
-Terra route; do not add a separate workflow `thinking` field.
+For `deep-learning`, omit `controls`; the bounded controls exist to reject an
+optimistic classification, not to limit the normal ingest workflow.
 
-If the `subagent` tool is unavailable, run in the current session and report
+If `metonia_delegate` is unavailable, run in the current session and report
 the routing exception. A bounded metadata/caption lookup may use
-`researcher`/Luna-low before the writer, but it must not mutate the vault or
+`efficient-read` before the writer, but it must not mutate the vault or
 become a coding review chain.
 
 The `pi-skills` repository is the canonical Pi-specific source and

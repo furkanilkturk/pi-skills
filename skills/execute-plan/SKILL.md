@@ -20,61 +20,56 @@ This is a coding execution skill. Do not rely on the parent chat, persistent
 memory, or unstated repo knowledge. The plan, its named files, and the current
 working tree are the complete fresh-context handoff.
 
-Use the default `worker` (Terra/medium) unless **all** Luna fast-lane conditions
-hold: `risk: low`; at most three files in the complete write set; exact
-deterministic checks; no architecture, auth, security, privacy, migration,
-concurrency, or hard-to-reverse decision; every effect is `none` or
-`local-build`; every human gate is `none`; and the base commit matches. When
-eligible, use the same `worker` role with a per-run
-`openai-codex/gpt-5.6-luna` / medium override. Luna/low remains read-only.
+Use `standard-write` unless **all** bounded-write fast-lane conditions hold:
+`risk: low`; at most three files in the complete write set; exact deterministic
+checks; no architecture, auth, security, privacy, migration, concurrency, or
+hard-to-reverse decision; every effect is `none` or `local-build`; every human
+gate is `none`; and the base commit matches.
 
 Any ambiguity, unexpected dependency, expanding write set, plan/repo mismatch,
 or failed safety check removes fast-lane eligibility. Stop and return evidence;
-do not let the cheaper executor explore or invent scope. Sol/high is only for a
-bounded critical decision explicitly escalated to `oracle`.
+do not let the bounded executor explore or invent scope. Use `deep-decision`
+only for a bounded critical decision.
 
 ## Orchestration Contract
 
-When this skill is loaded in the parent/orchestrator session, do not implement
-the approved plan in that expensive parent context. Verify approval, schema,
-base commit, risk, role profiles, and step controls, then launch a fresh
-`worker`. Explicitly inject `execute-plan` because the builtin worker does not
-inherit skills. When this skill is injected into that implementation child,
-execute the plan directly; do not delegate again.
+When this skill is loaded in the parent session, do not implement the approved
+plan in that expensive context. Load `metonia-orchestrator`, verify approval,
+schema, base commit, risk, and step controls, then call `metonia_delegate` with
+`bounded-write` or `standard-write`. Explicitly inject `execute-plan`. When this
+skill is injected into the child, execute directly and do not delegate again.
 
-The configured worker default is Terra/medium. For a Luna-eligible plan, add the
-top-level per-run override `model: "openai-codex/gpt-5.6-luna:medium"`. The
-thinking suffix is part of the model value in the installed Pi subagent
-contract; do not send a separate workflow `thinking` field. Omit `model` for
-the configured Terra worker. Use this Luna shape (replace placeholders with
-the plan's actual contract):
+Use this shape with actual absolute paths:
 
 ```js
 {
-  workflowScript: `return runs.run("execute", {
-    agent: "worker",
-    task: "Execute the approved Metonia plan at <ABS_PLAN_PATH> in <REPO_PATH>. Start fresh; obey its base commit, active packet, write set, gates, and stop conditions.",
-    acceptance: {
-      level: "checked",
-      criteria: ["Every completed step and success criterion has named evidence"],
-      evidence: ["changed-files", "commands-run", "residual-risks"]
-    }
-  })`,
+  capability: "bounded-write",
+  task: "Execute the approved Metonia plan at <ABS_PLAN_PATH>. Obey its base commit, active packet, write set, gates, and stop conditions.",
   skill: "execute-plan",
-  model: "openai-codex/gpt-5.6-luna:medium",
-  context: "fresh",
   cwd: "<REPO_PATH>",
-  async: false
+  criteria: ["Every completed step and success criterion has named evidence"],
+  evidence: ["changed-files", "commands-run", "residual-risks"],
+  controls: {
+    risk: "low",
+    writeFiles: ["<EXACT_FILE>"],
+    deterministicChecks: true,
+    sensitiveDecision: false,
+    externalEffect: false,
+    humanGate: false,
+    baseCommitMatches: true
+  }
 }
 ```
 
-After implementation evidence passes, launch a separate fresh `reviewer` with
-the plan path, actual diff, commands/results, and residual risks. The reviewer
-is read-only and remains Terra/medium for Standard and Critical work even when
-Luna implemented it. Keep the plan `in-progress` until required reviewer
+For `standard-write`, omit `controls`; they are an executable guard for the
+bounded route, not a claim that changes the plan's scope.
+
+After implementation evidence passes, use `fresh-review` for required
+independent review with the plan path, actual diff, commands/results, and
+residual risks. Keep the plan `in-progress` until required reviewer
 blockers are resolved or explicitly deferred by the user. Execute directly in
-the parent only when the worker tool is unavailable or the user explicitly
-selects the parent model; record that exception in the plan.
+the parent only when `metonia_delegate` is unavailable or the user explicitly
+selects the parent session; record that exception in the plan.
 
 ## Workflow
 
@@ -103,7 +98,7 @@ selects the parent model; record that exception in the plan.
    - pass → `done`; fail → retry only when `retry: safe-once` and
      `idempotent: true`; otherwise set the step `status: blocked`, paste the
      error, set plan `status: blocked` with `blocked_reason:` and `resume_when:`,
-     then stop and report. A Luna-to-Terra escalation consumes that one allowed
+     then stop and report. A bounded-to-standard escalation consumes that one allowed
      retry and must keep the same base commit, write set, and acceptance contract.
 6. On a plan/repo mismatch:
    - **Strict:** do not explore or write off-plan. Block the step and plan with
@@ -131,8 +126,8 @@ selects the parent model; record that exception in the plan.
      pending; a passing implementation check is necessary but not completion;
    - update concepts or project index metadata only when the approved plan names
      those files; otherwise leave them for `/update-project`.
-9. Apply the plan's acceptance contract. For a required review, launch a fresh,
-   read-only `reviewer`/Terra-medium with the plan path, changed-file list,
+9. Apply the plan's acceptance contract. For a required review, use
+   `fresh-review` with the plan path, changed-file list,
    verification commands and results. It must inspect the actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
    review blockers are resolved or explicitly deferred by the user, set plan
@@ -142,7 +137,7 @@ selects the parent model; record that exception in the plan.
    to `archive/log-YYYY.md`; never archive Current State/Open Questions, and do
    not create archive scaffolding before entries move. Small non-blocking
    suggestions may be recorded as deferred.
-   Escalate a critical unresolved decision to `oracle`/Sol-high and wait for
+   Escalate a critical unresolved decision with `deep-decision` and wait for
    the resulting human decision when scope or risk changes.
 
 ## Token Discipline

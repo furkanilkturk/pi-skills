@@ -17,29 +17,29 @@ plus what it names.
 
 ## Capability Profiles and Fresh Handoff
 
-This is a coding planner/orchestrator skill. The parent Sol/high session authors
+This is a coding planner/orchestrator skill. The capable parent session authors
 and challenges the plan; it does not implement later work merely because it
 knows the answer. Children start fresh and receive only the approved plan and
-the files it names.
+the files it names. `metonia-orchestrator` maps capabilities to local models.
 
 Map the canonical task mode to Pi by capability:
 
-- **Quick:** normally needs no formal plan. Use a fresh `worker` with a per-run
-  `openai-codex/gpt-5.6-luna` / medium override for a mechanical, low-risk,
-  reversible change that stays in one file and has an exact check.
-- **Bounded low-risk Standard:** Luna/medium may execute when the plan has an
+- **Quick:** normally needs no formal plan. Use `bounded-write` for a
+  mechanical, low-risk, reversible change that stays in one file and has an
+  exact check.
+- **Bounded low-risk Standard:** `bounded-write` may execute when the plan has an
   exact write set of at most three files, no architecture/auth/security/data
   migration/concurrency decision, no external effect beyond `none` or
-  `local-build`, no human gate, and deterministic checks. Fresh Terra/medium
-  review is still required.
-- **Standard:** use the default fresh `worker` and `reviewer`, both Terra/medium.
-- **Critical:** use Terra/medium for implementation and review. Use `oracle`
-  (Sol/high) only for a bounded critical decision with alternatives, risks, and
-  acceptance criteria.
+  `local-build`, no human gate, and deterministic checks. `fresh-review` is
+  still required.
+- **Standard:** use `standard-write` and required `fresh-review`.
+- **Critical:** use `standard-write` and `fresh-review`. Use `deep-decision`
+  only for a bounded critical question with alternatives, risks, and acceptance
+  criteria.
 
-Use `scout` or `researcher` (Luna/low) only for bounded read-only evidence. A
+Use `efficient-read` only for bounded read-only evidence. A
 model route never broadens scope. Any ambiguity, plan/repo mismatch, unexpected
-dependency, failed safety check, or expanding write set removes Luna
+dependency, failed safety check, or expanding write set removes bounded-write
 eligibility; stop and return evidence instead of exploring.
 
 ## Workflow
@@ -58,8 +58,8 @@ eligibility; stop and return evidence instead of exploring.
    non-empty `base_commit` (or `no-repo`), `risk`, provider-neutral
    `executor_profile` and `review_profile`, and `execution_mode: strict`.
    Use `adaptive` only after explicit user selection or approval and record that
-   approval in the Execution Log. The Pi host maps an eligible bounded/low-risk
-   executor to Luna/medium; keep model or provider names out of the plan.
+   approval in the Execution Log. The Pi host maps an eligible executor through
+   its local routing profile; keep model or provider names out of the plan.
 5. Set plan frontmatter `status: ready` when the user approves it.
 
 ## Executability Rules
@@ -76,7 +76,7 @@ it:
   or point at the produced file.
 - **Failure path** — classify every retry as `safe-once` or `never` and state
   idempotence. Retry only when `retry: safe-once` and `idempotent: true`; the
-  single retry may escalate an eligible Luna execution to Terra. Use `never`
+  single retry may escalate `bounded-write` to `standard-write`. Use `never`
   for deploys, submissions, billing, destructive data operations, and other
   external effects. Otherwise mark blocked and stop; never improvise scope.
 - **Acceptance contract** — name the required commands, expected result, and
@@ -98,14 +98,14 @@ it:
 - Include scout evidence paths in the plan instead of copying a conversational
   summary.
 - Route only an eligible Quick or bounded low-risk Standard write to
-  `worker` with the Luna/medium per-run override. Give it the approved plan or
+  `bounded-write`. Give it the approved plan or
   task contract, exact write set, stop conditions, and checks.
 - Route every other Standard or Critical implementation to the default
-  Terra/medium `worker`. One worker owns a write set or worktree at a time.
+  `standard-write`. One child owns a write set or worktree at a time.
 - Quick needs no independent review unless stricter project rules require it.
-  Standard and Critical require a fresh Terra/medium `reviewer` that inspects
+  Standard and Critical require `fresh-review` that inspects
   the actual diff, controls, and validation evidence without editing.
-- Escalate an unresolved critical decision to `oracle`/Sol-high rather than
+- Escalate an unresolved critical decision with `deep-decision` rather than
   asking a worker to invent scope.
 
 ## Context Discipline

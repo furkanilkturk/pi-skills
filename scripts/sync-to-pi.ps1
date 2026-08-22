@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Destination = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.pi/agent/skills'),
+    [string]$ExtensionDestination,
     [switch]$Check
 )
 
@@ -9,6 +10,11 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'skills'
+$extensionSourceRoot = Join-Path $repoRoot 'extensions/metonia-delegate'
+if (-not $ExtensionDestination) {
+    $agentDirectory = Split-Path -Parent $Destination
+    $ExtensionDestination = Join-Path $agentDirectory 'extensions/metonia-delegate'
+}
 
 if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) {
     throw "Skill source directory not found: $sourceRoot"
@@ -66,11 +72,34 @@ foreach ($skillDirectory in $skillDirectories) {
     Write-Host "synced: $($skillDirectory.Name) ($($sourceFiles.Count) files)"
 }
 
+$extensionFiles = @(Get-ChildItem -LiteralPath $extensionSourceRoot -File -Recurse | Sort-Object FullName)
+foreach ($item in $extensionFiles) {
+    $relativePath = [IO.Path]::GetRelativePath($extensionSourceRoot, $item.FullName)
+    $targetFile = Join-Path $ExtensionDestination $relativePath
+    $displayPath = "extension/metonia-delegate/$($relativePath.Replace('\', '/'))"
+
+    if ($Check) {
+        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+            $drift.Add("missing: $displayPath")
+            continue
+        }
+        $sourceHash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash
+        $targetHash = (Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash
+        if ($sourceHash -ne $targetHash) { $drift.Add("different: $displayPath") }
+        continue
+    }
+
+    $targetParent = Split-Path -Parent $targetFile
+    New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+    Copy-Item -LiteralPath $item.FullName -Destination $targetFile -Force
+}
+if (-not $Check) { Write-Host "synced: extension/metonia-delegate ($($extensionFiles.Count) files)" }
+
 if ($Check) {
     if ($drift.Count -gt 0) {
         $drift | ForEach-Object { Write-Host $_ }
         throw "$($drift.Count) skill(s) are out of sync."
     }
 
-    Write-Host "SYNC CLEAN ($($skillDirectories.Count) skills)"
+    Write-Host "SYNC CLEAN ($($skillDirectories.Count) skills, 1 extension)"
 }

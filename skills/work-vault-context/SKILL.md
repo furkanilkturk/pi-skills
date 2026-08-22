@@ -16,26 +16,26 @@ live in the vault; repo code lives wherever the project is.
 
 ## Capability Profiles
 
-Use the Pi fleet by capability, not by the parent session model:
+Use `metonia-orchestrator` by capability, not by the parent session model:
 
-- **Quick recon:** fresh `scout` or `researcher` — Luna/low, read-only facts.
-- **Quick execution:** `worker` with a per-run Luna/medium override — mechanical,
+- **Quick recon:** `efficient-read` for bounded, read-only facts.
+- **Quick execution:** `bounded-write` for mechanical,
   low-risk, reversible, one-file work with an exact check. No formal plan or
   independent review unless stricter project rules require them.
-- **Bounded low-risk Standard:** Luna/medium may execute an exact plan of at most
+- **Bounded low-risk Standard:** `bounded-write` may execute an exact plan of at most
   three files with deterministic checks, no sensitive domain, no human gate,
-  and no effect beyond `none` or `local-build`; Terra/medium reviews fresh.
-- **Standard execution and review:** fresh `worker` and `reviewer` —
-  Terra/medium. The worker owns one write set; the reviewer inspects the actual
-  diff and evidence read-only.
-- **Critical decision:** `oracle` — Sol/high, only for bounded questions with
+  and no effect beyond `none` or `local-build`; use `fresh-review`.
+- **Standard execution and review:** `standard-write`, then `fresh-review`.
+  The writer owns one write set; review inspects the actual diff and evidence
+  read-only.
+- **Critical decision:** `deep-decision`, only for bounded questions with
   explicit alternatives, risk, and acceptance criteria.
 
-The parent remains Sol/high for orchestration. Persist facts, decisions,
+The parent remains the planner/orchestrator. Persist facts, decisions,
 evidence paths, and acceptance criteria in the vault; do not assume a child
 inherits chat memory. A model profile is a capability contract, not permission
 to broaden scope. Ambiguity, a mismatch, a failed safety check, or an expanding
-write set escalates the mode and removes Luna write eligibility.
+write set escalates the mode and removes bounded-write eligibility.
 
 ## Context Folders
 
