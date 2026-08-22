@@ -1,31 +1,32 @@
 ---
 name: create-project
-description: Create a new Obsidian work project note in the Metonia vault before code exists or before inspecting a repo. Use when the user says /create-project, create project note, start a new Frostium/Yuppo/Freelance project, or wants the agent to ask questions and capture project context.
+description: Create a new project note in the Metonia vault before code exists or before inspecting a repo. Use when the user says /create-project, create project note, start a new project, or wants the agent to ask questions and capture project context.
 ---
 
 # Create Project
 
-Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/obsidian/metonia)
+Vault path: discover the Metonia vault by reading the `METONIA_VAULT`
+environment variable, or by asking the user for the path. There is no
+machine-specific fallback.
 
 ## Goal
 
-Create a project context page from user answers. This is for planned/new projects where repo inspection is not the primary source yet.
+Create a project context page from user answers. This is for planned/new
+projects where repo inspection is not the primary source yet.
 
 ## Required Questions
 
 Ask the user, preferably in one grouped questionnaire:
 
-1. Company/client: Frostium, Yuppo, Freelance, Personal, or custom?
+1. Company/client: which folder under `wiki/projects/<Company>/` (or a new one)?
 2. Project name?
 3. Repo path, if known? If new repo, where should it be created?
 4. Goal: what does this app/project do?
-5. Product & system surfaces: what user/product flows exist, and which apply — UI/design, client, server, data, integrations, deployment?
-6. Structure: for **Personal**, default to the MechFlow-style layout documented
-   on the [[Personal]] page (`src/lib/{client,server,shared}` + feature routes
-   with `<feature>.remote.ts` + `.svelte.ts` state/controller modules) unless
-   the user opts out. For companies, ask or read the company page **Project
-   Structure** section; if empty, note "follow existing repo" and capture later
-   via the add-project skill (say "add project").
+5. Product & system surfaces: what user/product flows exist, and which apply —
+   UI/design, client, server, data, integrations, deployment?
+6. Structure: read the company page's **Project Structure** section if one
+   exists; otherwise note "follow existing repo" and capture the real layout
+   later via the add-project skill.
 7. Important rules/preferences?
 8. What should AI not change without asking?
 9. Git/GitHub: init git now? If yes, private or public? (default: private)
@@ -34,42 +35,43 @@ Ask the user, preferably in one grouped questionnaire:
 
 Each project is a folder:
 
-- Frostium: `wiki/projects/Frostium/<Project>/index.md` (+ `rules.md` + `log.md`, `skills.md` optional)
-- Yuppo: `wiki/projects/Yuppo/<Project>/index.md` (+ `rules.md` + `log.md`, `skills.md` optional)
-- Freelance: `wiki/projects/Freelance/<Project>/index.md` (+ `rules.md` + `log.md`, `skills.md` optional)
-- Personal: `wiki/projects/Personal/<Project>/index.md` (+ `rules.md` + `log.md`, `skills.md` optional)
-- Custom: ask for folder under `wiki/projects/`
+```text
+wiki/projects/<Company>/<Project>/
+  index.md   (+ rules.md + log.md; skills.md optional)
+```
 
-## Template
-
-Use `wiki/projects/_templates/Work Project Template.md` as the base. Create `index.md` + `rules.md` + `log.md`. Only create `skills.md` if the project needs custom AI skills, `workflows.md` only for human workflows — skip both otherwise.
+Use `wiki/projects/_templates/Work Project Template.md` as the base. Create
+`index.md` + `rules.md` + `log.md`. Only create `skills.md` if the project needs
+custom AI skills, `workflows.md` only for human workflows — skip both otherwise.
 
 Always include links:
 
-- company page: `[[Frostium]]`, `[[Yuppo]]`, `[[Freelance]]`, or `[[Personal]]`
-- `[[Work Context System]]`
-- living concepts when obvious (e.g. `[[Zod]]`, `[[Drizzle ORM]]`, `[[HTTP]]`, `[[Database Engineering]]`) — only when the idea is durable and reusable across projects.
+- company index page if it exists;
+- `[[Work Context System]]`;
+- living concepts when obvious (durable, reusable ideas only).
 
-If a linked concept doesn't exist yet and it is durable/reusable, create `wiki/concepts/<Concept>.md` as a living stub (what it is + minimal example). Skip one-off or project-specific facts — those stay in `log.md`.
+If a linked concept doesn't exist yet and it is durable/reusable, create
+`wiki/concepts/<Concept>.md` as a living stub (what it is + minimal example).
+Skip one-off or project-specific facts — those stay in `log.md`.
 
 ## Git Init (when requested)
 
-If user wants git/GitHub for a new project:
+If the user wants git/GitHub for a new project:
 
-1. `git init` in repo path (if not already a repo).
-2. Create initial commit (README, .gitignore) if repo is empty.
-3. `gh repo create <name> --private|--public --source . --push` (prefer `gh` if available, else ask for remote URL).
-4. Default to **private** unless user says public.
-5. Record repo URL in `index.md` frontmatter `repo_url:` field.
+1. `git init` in the repo path (if not already a repo).
+2. Create an initial commit (README, .gitignore) if the repo is empty.
+3. `gh repo create <name> --private|--public --source . --push` (prefer `gh` if
+   available, else ask for the remote URL).
+4. Default to **private** unless the user says public.
+5. Record the repo URL in `index.md` frontmatter `repo_url:`.
 
-Skip git entirely if project is docs-only or user says no.
+Skip git entirely if the project is docs-only or the user says no.
 
 ## After Creating
 
-Update:
+Update the company index project list (if it exists) and `wiki/Index.md` with
+the new project route. Append a short `wiki/Log.md` entry for the meaningful
+project creation; skip no-op/tiny typo, formatting, or link-only maintenance.
 
-- company index page project list;
-- `wiki/Index.md` if the project is important;
-- `wiki/Log.md` with a short entry.
-
-Do not store secrets, tokens, passwords, private customer data, or raw ticket dumps.
+Do not store secrets, tokens, passwords, private customer data, or raw ticket
+dumps.

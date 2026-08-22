@@ -1,15 +1,18 @@
 ---
 name: delete-project
-description: Remove or archive a project from the Metonia Obsidian work context system. Use when the user says /delete-project, remove project context, archive project, or asks whether to keep lessons before deleting a project note.
+description: Remove or archive a project from the Metonia work context system. Use when the user says /delete-project, remove project context, archive project, or asks whether to keep lessons before deleting a project note.
 ---
 
 # Delete Project
 
-Vault path: discovered Metonia vault (ask user or env METONIA_VAULT, fallback C:/Users/imust/repos/obsidian/metonia)
+Vault path: discover the Metonia vault by reading the `METONIA_VAULT`
+environment variable, or by asking the user for the path. There is no
+machine-specific fallback.
 
 ## Goal
 
-Delete or archive a project note safely while preserving reusable lessons if the user wants them.
+Delete or archive a project note safely while preserving reusable lessons if the
+user wants them.
 
 ## Workflow
 
@@ -18,13 +21,17 @@ Delete or archive a project note safely while preserving reusable lessons if the
    - delete permanently or archive?
    - keep lessons learned?
    - keep decisions/architecture history?
-   - remove from company index?
+   - remove from the company index?
 3. If keeping lessons, extract reusable parts to one of:
-   - company page `Lessons Learned`;
-   - `wiki/projects/Work Lessons.md` if it exists or should be created;
-   - relevant concept page (e.g. `[[Code Review]]`, `[[Expo]]`, `[[RevenueCat]]`, `[[HTTP]]`, `[[Database Engineering]]`) — only for durable, reusable ideas, never one-off or project-specific facts.
+   - the company page's `Lessons Learned` section;
+   - `wiki/projects/Work Lessons.md`;
+   - the relevant concept page — only for durable, reusable ideas, never
+     one-off or project-specific facts.
 4. Delete or move the project folder.
-5. Update company index, `wiki/Index.md`, and `wiki/Log.md`.
+5. Update the company index (if it exists) and `wiki/Index.md` because the
+   project route changed. Append a short `wiki/Log.md` entry for the meaningful
+   deletion or archive; skip no-op/tiny typo, formatting, or link-only
+   maintenance.
 
 ## Default Recommendation
 
@@ -32,8 +39,11 @@ Prefer archive over delete unless the user explicitly wants deletion.
 
 Archive path:
 
-`wiki/projects/<Company>/archive/<Project>/` (keep folder structure)
+```text
+wiki/projects/<Company>/archive/<Project>/  (keep folder structure)
+```
 
 ## Boundaries
 
-Never delete raw source code repos. This skill only manages Obsidian project context unless the user explicitly asks otherwise.
+Never delete raw source code repos. This skill only manages project context
+unless the user explicitly asks otherwise.
