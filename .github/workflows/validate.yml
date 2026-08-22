@@ -1,0 +1,24 @@
+name: Validate skills
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: furkanilkturk/metonia
+          path: upstream-metonia
+      - name: Validate skill contracts
+        shell: pwsh
+        run: ./scripts/test-skills.ps1
+      - name: Check Metonia drift
+        shell: pwsh
+        run: ./scripts/check-metonia-drift.ps1 -MetoniaRoot ./upstream-metonia

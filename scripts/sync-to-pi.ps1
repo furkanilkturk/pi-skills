@@ -23,26 +23,47 @@ foreach ($skillDirectory in $skillDirectories) {
         throw "Missing SKILL.md: $sourceFile"
     }
 
+    $skillText = Get-Content -LiteralPath $sourceFile -Raw
+    $escapedName = [Regex]::Escape($skillDirectory.Name)
+    if ($skillText -notmatch "(?m)^name:\s*$escapedName\s*$") {
+        throw "Skill name does not match its folder: $sourceFile"
+    }
+    if ($skillText -notmatch '(?m)^description:\s*\S.+$') {
+        throw "Skill description is missing: $sourceFile"
+    }
+
     $targetDirectory = Join-Path $Destination $skillDirectory.Name
-    $targetFile = Join-Path $targetDirectory 'SKILL.md'
+    $sourceFiles = @(Get-ChildItem -LiteralPath $skillDirectory.FullName -File -Recurse |
+        Sort-Object FullName)
 
     if ($Check) {
-        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
-            $drift.Add("missing: $($skillDirectory.Name)")
-            continue
-        }
+        foreach ($item in $sourceFiles) {
+            $relativePath = [IO.Path]::GetRelativePath($skillDirectory.FullName, $item.FullName)
+            $targetFile = Join-Path $targetDirectory $relativePath
+            $displayPath = "$($skillDirectory.Name)/$($relativePath.Replace('\', '/'))"
 
-        $sourceHash = (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash
-        $targetHash = (Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash
-        if ($sourceHash -ne $targetHash) {
-            $drift.Add("different: $($skillDirectory.Name)")
+            if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+                $drift.Add("missing: $displayPath")
+                continue
+            }
+
+            $sourceHash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash
+            $targetHash = (Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash
+            if ($sourceHash -ne $targetHash) {
+                $drift.Add("different: $displayPath")
+            }
         }
         continue
     }
 
-    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
-    Copy-Item -LiteralPath $sourceFile -Destination $targetFile -Force
-    Write-Host "synced: $($skillDirectory.Name)"
+    foreach ($item in $sourceFiles) {
+        $relativePath = [IO.Path]::GetRelativePath($skillDirectory.FullName, $item.FullName)
+        $targetFile = Join-Path $targetDirectory $relativePath
+        $targetParent = Split-Path -Parent $targetFile
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+        Copy-Item -LiteralPath $item.FullName -Destination $targetFile -Force
+    }
+    Write-Host "synced: $($skillDirectory.Name) ($($sourceFiles.Count) files)"
 }
 
 if ($Check) {

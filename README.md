@@ -30,9 +30,9 @@ durable vault plans.
 | `video-learning` | Turn videos and transcripts into lessons and living concepts. |
 
 Learning workflows do not inherit the coding planner → executor → reviewer
-chain. They use one vault writer, source links, confidence labels, and spot
-checks. Short clean sources can use Luna/medium; dense or highly technical
-sources use Terra/medium.
+chain. They launch one fresh vault writer with the selected learning skill
+explicitly injected. Short clean sources use Luna/medium; dense, uncertain, or
+highly technical sources use Terra/medium.
 
 ## Coding model routing
 
@@ -77,8 +77,10 @@ Override the destination when needed:
 pwsh ./scripts/sync-to-pi.ps1 -Destination /path/to/.pi/agent/skills
 ```
 
-The script copies only this repository's `SKILL.md` files and never deletes
-other installed skills.
+The script copies every file in this repository's nine owned skill folders, so
+future `references/`, `scripts/`, and assets are included. It never deletes
+other installed skill folders. Extra files already present inside an owned
+destination folder are left in place.
 
 Pi can alternatively load the repository directly:
 
@@ -98,9 +100,30 @@ the path. No machine-specific vault or company path is stored in this repo.
 
 ## Validation
 
-Each skill is a self-contained folder with YAML frontmatter and a `SKILL.md`.
-Before publishing changes, validate all skill folders and confirm the installed
-mirror is synchronized.
+Run the repository checks before publishing:
+
+```powershell
+pwsh ./scripts/test-skills.ps1
+pwsh ./scripts/sync-to-pi.ps1 -Check
+```
+
+The first command validates skill identity/frontmatter, routing contracts,
+upstream manifest coverage, and an isolated full-tree sync round trip. CI runs
+the same checks. These are contract tests, not proof that one model will solve
+every eligible task; use [the live benchmark protocol](evals/benchmark.md) for
+quality, token, cost, and latency evidence.
+
+## Metonia upstream drift
+
+`upstream-manifest.json` records the provider-neutral Metonia skill hashes on
+which these Pi adaptations are based. Check a local Metonia clone with:
+
+```powershell
+pwsh ./scripts/check-metonia-drift.ps1 -MetoniaRoot /path/to/metonia
+```
+
+After reviewing and porting legitimate upstream changes, refresh the baseline
+with `-Update`. CI checks the manifest against the public Metonia repository.
 
 ## Privacy
 

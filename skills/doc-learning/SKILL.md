@@ -26,6 +26,42 @@ lesson. Use Luna/low only for bounded metadata or source lookup. Independent
 review is optional unless the user requests publication-grade accuracy; source
 links, confidence labels, and spot checks are the default evidence.
 
+### Pi orchestration
+
+In a parent session with the `subagent` tool, classify the source before vault
+writes and launch exactly one fresh `worker`. Explicitly inject `doc-learning`
+because the builtin worker does not inherit skills. Use
+`openai-codex/gpt-5.6-luna:medium` only for a short, clean, single-source ingest;
+otherwise use `openai-codex/gpt-5.6-terra:medium`. Uncertain classification goes
+to Terra. When this skill is injected into the worker, ingest directly and do
+not delegate again.
+
+```js
+{
+  workflowScript: `return runs.run("ingest", {
+    agent: "worker",
+    task: "Load and follow doc-learning. Ingest <SOURCE> into the Metonia vault at <VAULT_PATH>. Preserve raw evidence, write one lesson, update living concepts and required navigation/log files, then report changed files and spot checks.",
+    acceptance: {
+      level: "checked",
+      criteria: ["Raw evidence is preserved and the lesson is linked to its concepts"],
+      evidence: ["changed-files", "source-link-or-path", "spot-checks", "confidence"]
+    }
+  })`,
+  skill: "doc-learning",
+  model: "openai-codex/gpt-5.6-luna:medium",
+  context: "fresh",
+  cwd: "<VAULT_PATH>",
+  async: false
+}
+```
+
+Replace the shown Luna model with `openai-codex/gpt-5.6-terra:medium` for the
+Terra route; do not add a separate workflow `thinking` field.
+
+If the `subagent` tool is unavailable, run in the current session and report
+the routing exception. A bounded lookup may use `researcher`/Luna-low before
+the writer, but it must not mutate the vault or become a coding review chain.
+
 The `pi-skills` repository is the canonical Pi-specific source and
 `~/.pi/agent/skills` is its installed mirror. Metonia may also ship a
 provider-neutral distribution copy for other agents. When Pi discovers both,

@@ -38,10 +38,16 @@ bounded critical decision explicitly escalated to `oracle`.
 When this skill is loaded in the parent/orchestrator session, do not implement
 the approved plan in that expensive parent context. Verify approval, schema,
 base commit, risk, role profiles, and step controls, then launch a fresh
-`worker`. The configured default is Terra/medium. For a Luna-eligible plan, add
-top-level `model: "openai-codex/gpt-5.6-luna"` and `thinking: "medium"` to the
-same Pi `subagent` call; per-run fields override the configured worker model.
-Use this shape (replace placeholders with the plan's actual contract):
+`worker`. Explicitly inject `execute-plan` because the builtin worker does not
+inherit skills. When this skill is injected into that implementation child,
+execute the plan directly; do not delegate again.
+
+The configured worker default is Terra/medium. For a Luna-eligible plan, add the
+top-level per-run override `model: "openai-codex/gpt-5.6-luna:medium"`. The
+thinking suffix is part of the model value in the installed Pi subagent
+contract; do not send a separate workflow `thinking` field. Omit `model` for
+the configured Terra worker. Use this Luna shape (replace placeholders with
+the plan's actual contract):
 
 ```js
 {
@@ -54,6 +60,9 @@ Use this shape (replace placeholders with the plan's actual contract):
       evidence: ["changed-files", "commands-run", "residual-risks"]
     }
   })`,
+  skill: "execute-plan",
+  model: "openai-codex/gpt-5.6-luna:medium",
+  context: "fresh",
   cwd: "<REPO_PATH>",
   async: false
 }
