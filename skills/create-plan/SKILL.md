@@ -23,8 +23,9 @@ plus what it names.
    from `log.md` by default. Read Decisions, latest Build Log entries, Lessons,
    or an archive only when task-relevant. Read the repo only as needed to name
    exact files.
-3. Ask the user for anything unclear: goal, scope, constraints, done definition,
-   and whether they explicitly want adaptive execution. Strict is the default.
+3. Follow **Planning and Execution** in `wiki/projects/Work Context System.md`.
+   Ask only decision-changing questions about goal, scope, constraints, done
+   definition, or adaptive execution. Strict is the default.
 4. Write `wiki/projects/<Company>/<Project>/plans/<slug>.md` from
    `wiki/projects/_templates/Plan Template.md`. Set frontmatter
    `execution_mode: strict`; use `adaptive` only after explicit user selection
@@ -56,34 +57,11 @@ Link the minimum: project index + rules always; concepts only for steps that
 touch them. If you cannot write a verifiable done-check for a step, split the
 step or ask the user.
 
-## Speed Policy
+## Efficiency
 
-Plan fast; never trade the floor below for speed.
-
-- **One plan by default.** Split only for genuinely independent
-dependency/deployment/parallel ownership lanes, not merely because the task is
-large. When you split, state the reason in the plan.
-- **Reuse current context.** Use a current audit, recon, or research brief
-instead of rereading the whole repository in a fresh context. Re-verify only
-facts still uncertain and the exact paths/checks the plan names.
-- **Soft wall-clock targets.** Quick ~5 minutes, Standard ~15, Critical ~30.
-These are targets, never hard deadlines. At the target, report the
-evidence-backed bottleneck; exceed it only for unresolved correctness,
-security, privacy, or data-loss risk — never for prose polish.
-- **Default 4-7 steps, roughly 80-150 lines** per plan (max ~10 steps). Exceed
-the line guide only for evidence-backed Critical complexity and say why.
-- **Lane plans share by reference.** Do not duplicate shared context across
-lane plans; point to the exact produced contracts/files/plans and repeat only
-the facts a memoryless executor in that lane needs.
-- **One focused review.** Standard gets one focused review; Critical gets one
-independent focused review. Batch all blockers into one correction pass and one
-re-review. Mechanical template/link/lint checks do not need separate reviewers.
-- **Quality floor is non-negotiable.** Exact paths, verifiable checks, failure
-handling, security/privacy/data-loss validation, accessibility where relevant,
-ownership, rollout/rollback, and explicit human gates remain.
-- **Budget stalls, not correctness.** When delegation controls exist, use soft
-turn/tool/runtime budgets to expose stalls; never let a hard cutoff hide an
-unresolved Critical risk.
+Follow canonical **Planning and Execution** and **Task Modes** (including
+**Efficiency**) in `wiki/projects/Work Context System.md`; do not restate them in
+the plan.
 
 ## After Creating
 

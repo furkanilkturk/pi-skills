@@ -18,8 +18,10 @@ resume at any time.
 
 1. Find the plan: the user gives a path, or list
    `wiki/projects/<Company>/<Project>/plans/` and ask.
-2. Read the plan fully once and read the project `rules.md`. Do not read anything
-   else yet. Treat a missing `execution_mode` as `strict` for legacy plans.
+2. Read the plan fully once, project `rules.md`, and only **Planning and
+   Execution** and **Efficiency** in `wiki/projects/Work Context System.md`. Do
+   not read anything else yet. Treat a missing `execution_mode` as `strict` for
+   legacy plans.
 3. Confirm the execution mode. `strict` is the default. `adaptive` is valid only
    when explicit user selection/approval is recorded in the plan Execution Log;
    otherwise block and request that approval before implementation writes.
@@ -50,8 +52,10 @@ resume at any time.
 7. Never skip or reorder steps. Adaptive changes the amendment procedure, not
    the permission to make off-plan writes.
 8. When all steps are done:
-   - run the project's full verification (lint/check/test as named in the
-     project index);
+   - read only the project index's **Commands** section, then run its full
+     verification (lint/check/test);
+   - apply the completed-work metric and stop rules from canonical **Planning
+     and Execution**;
    - fill the plan's Success Criteria checkboxes;
    - set plan `status: done` only when every step and full check passed;
    - refresh the project `log.md` Current State (about 10 bullets maximum) and

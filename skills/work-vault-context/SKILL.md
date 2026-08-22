@@ -28,26 +28,30 @@ When the user says to create or resume a work project:
 
 1. Resolve the vault path (`METONIA_VAULT` or ask).
 2. Read `wiki/projects/Work Context System.md`.
-3. Read the company index if it exists
+3. For an existing repo, follow the system page's **Context Routing** before
+   proposing a hierarchy: scan all project index frontmatter, reuse an exact
+   `repo_path`/`repo_url` match, then ask the user to resolve related-name
+   candidates as existing, related separate, or genuinely new.
+4. Read the matched company index if it exists
    (`wiki/projects/<Company>/<Company>.md`), or list `wiki/projects/<Company>/`
    for the project.
-4. If the project folder exists, read `index.md` + `rules.md`, then only the
+5. If the project folder exists, read `index.md` + `rules.md`, then only the
    `Current State` and `Open Questions` sections of `log.md` by default
    (+ `skills.md` only if present). Read Decisions, latest Build Log entries,
    Lessons Learned, or `archive/log-YYYY.md` only when the task needs that
    history. If the project does not exist, create it from the template.
-5. Then inspect the actual repo files for the coding task.
-6. Update the project folder only with durable context: decisions, commands,
+6. Then inspect the actual repo files for the coding task.
+7. Update the project folder only with durable context: decisions, commands,
    architecture, recurring bugs, and lessons. Never create `skills.md` or
    `workflows.md` unless the project actually needs them.
 
 ## Task Modes
 
-Before real work, read the **Task Modes** section in
-`wiki/projects/Work Context System.md`; it is the canonical full policy. Announce
-**Quick**, **Standard**, or **Critical** with one reason, keep one writer per
-worktree, and escalate if risk rises. Company and project rules may only make
-this policy stricter.
+Before real work, read **Efficiency** and **Mode Requirements** under **Task
+Modes** in `wiki/projects/Work Context System.md`; that policy is canonical.
+Announce **Quick**, **Standard**, or **Critical** with one reason, follow its
+mutation ownership rules, and escalate if risk rises. Company and project rules
+may only make this policy stricter.
 
 ## Boundaries
 
@@ -64,21 +68,6 @@ this policy stricter.
 
 ## Living Concepts
 
-`wiki/concepts/` holds **living** pages for durable, reusable ideas across any
-domain — engineering, product, design, business, research, or otherwise. When a
-project uses or learns something durable:
-
-1. If `wiki/concepts/<Topic>.md` doesn't exist → create it: what it is + minimal
-   example/evidence + link to the source.
-2. If it exists → **append** a `## <Project> — how we use/learned <Topic>`
-   subsection + backlink to `[[<Project>/index|Project]]` (match the page's
-   existing project-heading level; default `##`). Never overwrite other
-   projects' sections.
-3. Projects only **link** to the concept (`[[<Topic>]]`), they don't own the
-   explanation.
-4. Skip one-off fixes and project-specific facts — those stay in the project
-   `log.md`, not a concept.
-
-If a topic doesn't fit an existing `wiki/concepts/` or `wiki/courses/` folder,
-create a new `wiki/concepts/<NewTopic>/` or `wiki/courses/<new-course>/` and add
-it to [[Index]].
+Follow **Learning From Work** in `wiki/projects/Work Context System.md`. Promote
+only durable, evidenced ideas; preserve other projects' sections; keep one-off
+facts in the project log; and route any new topic from [[Index]].
