@@ -67,13 +67,17 @@ foreach ($capability in $capabilities) {
     }
 }
 if ($contracts['metonia-orchestrator'] -notmatch 'parent session') { $failures.Add('metonia-orchestrator lacks its parent-only guard') }
+foreach ($role in @('scout', 'researcher', 'worker', 'reviewer', 'oracle')) {
+    if ($contracts['metonia-orchestrator'] -notmatch "``$role``") { $failures.Add("metonia-orchestrator lacks role $role") }
+}
+if ($contracts['metonia-orchestrator'] -notmatch 'runs the tool calls in parallel') { $failures.Add('metonia-orchestrator lacks bounded parallel-read guidance') }
 
 foreach ($runtimeFile in @($runtimePath, $routingPath, $routingExamplePath)) {
     if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { $failures.Add("missing runtime file: $runtimeFile") }
 }
 if (Test-Path -LiteralPath $runtimePath) {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw
-    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'metonia-runs.jsonl', '--no-session', '--no-skills', '--exclude-tools')) {
+    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-skills', '--exclude-tools')) {
         if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks safety contract: $contract") }
     }
     if ($runtime -match 'from\s+["'']pi-subagents') { $failures.Add('runtime imports pi-subagents') }
@@ -84,6 +88,17 @@ if ($LASTEXITCODE -ne 0) { $failures.Add('routing unit tests failed') }
 
 if (Test-Path -LiteralPath $routingExamplePath) {
     $routing = Get-Content -LiteralPath $routingExamplePath -Raw | ConvertFrom-Json
+    if ($routing.active_profile -ne 'auto') { $failures.Add('example routing does not default to auto') }
+    foreach ($capability in $capabilities) {
+        if (-not $routing.auto_routes.PSObject.Properties[$capability]) {
+            $failures.Add("auto routing lacks $capability")
+            continue
+        }
+        $resolved = & node $resolverPath $capability --profile auto --config $routingExamplePath --compact | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $resolved.profile -ne 'auto' -or $resolved.selection_source -ne 'parent-fallback') {
+            $failures.Add("resolver failed: auto/$capability")
+        }
+    }
     foreach ($profile in $routing.profiles.PSObject.Properties) {
         foreach ($capability in $capabilities) {
             if (-not $profile.Value.capabilities.PSObject.Properties[$capability]) {
@@ -156,13 +171,14 @@ try {
     & $syncScript -Destination $tempSkills -ExtensionDestination $tempExtension -Check
     Copy-Item -LiteralPath $routingExamplePath -Destination $tempConfig
     $legacyConfig = Get-Content -LiteralPath $tempConfig -Raw | ConvertFrom-Json
+    $legacyConfig.PSObject.Properties.Remove('auto_routes')
     foreach ($profile in $legacyConfig.profiles.PSObject.Properties) {
         $profile.Value.capabilities.PSObject.Properties.Remove('bounded-learning')
         $profile.Value.capabilities.PSObject.Properties.Remove('deep-learning')
     }
     [IO.File]::WriteAllText($tempConfig, (($legacyConfig | ConvertTo-Json -Depth 20) + "`n"))
-    & $configureScript -ConfigPath $tempConfig -Profile mixed
-    & $configureScript -ConfigPath $tempConfig -Profile mixed -Check
+    & $configureScript -ConfigPath $tempConfig -Profile auto
+    & $configureScript -ConfigPath $tempConfig -Profile auto -Check
 } catch {
     $failures.Add("install round trip failed: $($_.Exception.Message)")
 } finally {

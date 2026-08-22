@@ -12,9 +12,85 @@ export const CAPABILITIES = [
   "deep-decision",
 ];
 
+const AUTO_ROUTES = {
+  "efficient-read": {
+    agent: "scout",
+    candidates: [
+      "openai-codex/gpt-5.6-luna:low",
+      "opencode-go/gpt-5.6-luna:low",
+      "opencode/claude-haiku-4-5:low",
+      "opencode-go/glm-5.1:low",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "bounded-write": {
+    agent: "worker",
+    candidates: [
+      "openai-codex/gpt-5.6-luna:medium",
+      "opencode-go/gpt-5.6-luna:medium",
+      "opencode-go/kimi-k2.7-code:medium",
+      "opencode/claude-sonnet-4-6:medium",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "standard-write": {
+    agent: "worker",
+    candidates: [
+      "openai-codex/gpt-5.6-terra:medium",
+      "opencode/claude-sonnet-4-6:medium",
+      "opencode-go/kimi-k2.7-code:medium",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "bounded-learning": {
+    agent: "researcher",
+    candidates: [
+      "openai-codex/gpt-5.6-luna:medium",
+      "opencode-go/gpt-5.6-luna:medium",
+      "opencode/claude-haiku-4-5:medium",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "deep-learning": {
+    agent: "researcher",
+    candidates: [
+      "opencode/claude-sonnet-4-6:medium",
+      "openai-codex/gpt-5.6-terra:medium",
+      "opencode-go/qwen3.7-plus:medium",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "fresh-review": {
+    agent: "reviewer",
+    candidates: [
+      "opencode/claude-sonnet-4-6:medium",
+      "openai-codex/gpt-5.6-terra:medium",
+      "opencode-go/qwen3.7-plus:medium",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+  "deep-decision": {
+    agent: "oracle",
+    candidates: [
+      "openai-codex/gpt-5.6-sol:high",
+      "opencode/claude-opus-4-8:high",
+      "opencode-go/qwen3.8-max:high",
+    ],
+    fallback: "$parent",
+    context: "fresh",
+  },
+};
+
 const PORTABLE_CONFIG = {
   schema_version: 1,
-  active_profile: "portable",
+  active_profile: "auto",
+  auto_routes: AUTO_ROUTES,
   profiles: {
     portable: {
       description: "Use the parent session model for every capability.",
@@ -22,6 +98,7 @@ const PORTABLE_CONFIG = {
         capability,
         {
           agent: capability === "efficient-read" ? "scout" :
+            capability === "bounded-learning" || capability === "deep-learning" ? "researcher" :
             capability === "fresh-review" ? "reviewer" :
               capability === "deep-decision" ? "oracle" : "worker",
           model: "$parent",
@@ -43,7 +120,7 @@ export function loadRoutingConfig(configPath) {
     if (explicitPath) {
       throw new Error(`routing config not found at ${resolvedPath}; run scripts/configure-routing.ps1`);
     }
-    return { config: PORTABLE_CONFIG, configPath: "<built-in-portable>" };
+    return { config: PORTABLE_CONFIG, configPath: "<built-in-auto>" };
   }
 
   let config;
@@ -67,6 +144,29 @@ export function resolveRoute(capability, options = {}) {
   const { config, configPath } = loadRoutingConfig(options.configPath);
   const profileName =
     options.profile ?? process.env.METONIA_ROUTING_PROFILE ?? config.active_profile;
+  if (profileName === "auto") {
+    const route = config.auto_routes?.[capability];
+    if (!route) throw new Error(`automatic routing has no '${capability}' route`);
+    if (typeof route.agent !== "string" || !route.agent.trim()) {
+      throw new Error("auto route.agent must be a non-empty string");
+    }
+    if (!Array.isArray(route.candidates) || route.candidates.length === 0 ||
+      route.candidates.some((model) => typeof model !== "string" || !/^[^/]+\/.+:[a-z]+$/.test(model))) {
+      throw new Error("auto route.candidates must contain provider/model:thinking entries");
+    }
+    if (route.fallback !== "$parent") throw new Error("auto route.fallback must be $parent");
+    if (route.context !== "fresh") throw new Error("auto route.context must be 'fresh'");
+
+    const available = new Set(Array.from(options.availableModels ?? [], (model) => String(model)));
+    const candidateIndex = route.candidates.findIndex((model) => available.has(modelBase(model)));
+    const model = candidateIndex >= 0 ? route.candidates[candidateIndex] : route.fallback;
+    return resolvedRoute(configPath, profileName, capability, route, model, {
+      selection_source: candidateIndex >= 0 ? "auto-candidate" : "parent-fallback",
+      candidate_index: candidateIndex >= 0 ? candidateIndex : null,
+      candidate_count: route.candidates.length,
+    });
+  }
+
   const profile = config.profiles[profileName];
   if (!profile) throw new Error(`routing profile '${profileName ?? ""}' does not exist`);
 
@@ -80,6 +180,20 @@ export function resolveRoute(capability, options = {}) {
   }
   if (route.context !== "fresh") throw new Error("route.context must be 'fresh'");
 
+  return resolvedRoute(configPath, profileName, capability, route, route.model, {
+    selection_source: "profile",
+    candidate_index: null,
+    candidate_count: 0,
+  });
+}
+
+export function modelBase(model) {
+  const slash = model.indexOf("/");
+  const colon = model.lastIndexOf(":");
+  return slash >= 0 && colon > slash ? model.slice(0, colon) : model;
+}
+
+function resolvedRoute(configPath, profileName, capability, route, model, selection) {
   const defaultTimeout = capability === "efficient-read" ? 600 : 1200;
   const timeoutSeconds = route.timeout_seconds ?? defaultTimeout;
   if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 30 || timeoutSeconds > 7200) {
@@ -92,9 +206,10 @@ export function resolveRoute(capability, options = {}) {
     profile: profileName,
     capability,
     agent: route.agent,
-    model: route.model,
+    model,
     context: route.context,
     timeout_seconds: timeoutSeconds,
+    ...selection,
   };
 }
 

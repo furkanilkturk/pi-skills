@@ -36,6 +36,21 @@ $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 $example = Get-Content -LiteralPath $examplePath -Raw | ConvertFrom-Json
 $configChanged = $false
 if (-not $Check) {
+    if (-not $config.PSObject.Properties['auto_routes']) {
+        $config | Add-Member -NotePropertyName auto_routes -NotePropertyValue $example.auto_routes
+        $configChanged = $true
+    } else {
+        foreach ($exampleRoute in $example.auto_routes.PSObject.Properties) {
+            if (-not $config.auto_routes.PSObject.Properties[$exampleRoute.Name]) {
+                $config.auto_routes | Add-Member -NotePropertyName $exampleRoute.Name -NotePropertyValue $exampleRoute.Value
+                $configChanged = $true
+            } elseif ($exampleRoute.Name -in @('bounded-learning', 'deep-learning') -and
+                $config.auto_routes.PSObject.Properties[$exampleRoute.Name].Value.agent -eq 'worker') {
+                $config.auto_routes.PSObject.Properties[$exampleRoute.Name].Value.agent = 'researcher'
+                $configChanged = $true
+            }
+        }
+    }
     foreach ($exampleProfile in $example.profiles.PSObject.Properties) {
         $existingProfile = $config.profiles.PSObject.Properties[$exampleProfile.Name]
         if (-not $existingProfile) {
@@ -47,13 +62,17 @@ if (-not $Check) {
             if (-not $existingProfile.Value.capabilities.PSObject.Properties[$exampleCapability.Name]) {
                 $existingProfile.Value.capabilities | Add-Member -NotePropertyName $exampleCapability.Name -NotePropertyValue $exampleCapability.Value
                 $configChanged = $true
+            } elseif ($exampleCapability.Name -in @('bounded-learning', 'deep-learning') -and
+                $existingProfile.Value.capabilities.PSObject.Properties[$exampleCapability.Name].Value.agent -eq 'worker') {
+                $existingProfile.Value.capabilities.PSObject.Properties[$exampleCapability.Name].Value.agent = 'researcher'
+                $configChanged = $true
             }
         }
     }
 }
 
 if ($Profile) {
-    if (-not $config.profiles.PSObject.Properties[$Profile]) {
+    if ($Profile -ne 'auto' -and -not $config.profiles.PSObject.Properties[$Profile]) {
         throw "Unknown routing profile: $Profile"
     }
     if ($Check -and $config.active_profile -ne $Profile) {
@@ -78,6 +97,10 @@ foreach ($profileProperty in $config.profiles.PSObject.Properties) {
         & node $resolverPath $capability --profile $profileProperty.Name --config $ConfigPath --compact | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Routing validation failed for $($profileProperty.Name)/$capability" }
     }
+}
+foreach ($capability in $capabilities) {
+    & node $resolverPath $capability --profile auto --config $ConfigPath --compact | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Routing validation failed for auto/$capability" }
 }
 
 if ($Check) {

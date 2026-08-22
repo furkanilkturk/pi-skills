@@ -2,7 +2,7 @@
 
 Pi-native skills, delegation, and model routing for a Metonia vault.
 
-This private repository is the canonical Pi deployment source. The installed
+This repository is the canonical Pi deployment source. The installed
 files under `~/.pi/agent` are a mirror. The public Metonia repository may ship
 provider-neutral skill copies; this repository adds a small first-party Pi
 delegation extension and local routing profiles without putting provider names
@@ -42,7 +42,7 @@ uncertain, or highly technical sources use `deep-learning`.
 
 - one fresh child process per call;
 - one explicitly injected skill;
-- provider-neutral capability routing;
+- provider-neutral capability routing over Pi's authenticated model catalog;
 - truly read-only toolsets for reconnaissance/review/decision roles;
 - a cross-process writer lock per cwd;
 - required acceptance/evidence output; and
@@ -53,9 +53,12 @@ It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
 background jobs, inter-agent chat, and automatic worktree management.
 
-With no local routing file, the built-in `portable` profile inherits the
-parent session model. That makes the package provider-neutral and immediately
-usable; configured profiles add cost/quality specialization.
+The default `auto` broker asks Pi which models are available through the
+current logins and selects the first capability-ranked candidate. It therefore
+works across Codex, OpenCode Go, OpenCode/Claude, or any combination already
+authenticated in Pi. If no ranked candidate is available—or catalog discovery
+fails—it inherits the parent session model. The ranking is explicit policy,
+not a claim that the runtime can measure model quality live.
 
 ## Capability routing
 
@@ -69,10 +72,19 @@ usable; configured profiles add cost/quality specialization.
 | `fresh-review` | Independent read-only review of actual evidence. |
 | `deep-decision` | Bounded high-impact decision analysis. |
 
+Routes preserve role identity: `scout` for reconnaissance, `researcher` for
+learning synthesis, `worker` for implementation, `reviewer` for independent
+verification, and `oracle` for high-impact decisions. Pi executes multiple tool
+calls from one model turn in parallel by default, so up to three independent
+read-only Metonia tasks can run concurrently. The cwd writer lock prevents
+competing writers; parallel write work requires separate worktrees and explicit
+merge ownership.
+
 Durable skills mention capabilities only. `config/routing.example.json` ships
-starter `portable`, `codex`, `opencode-go`, `claude`, and `mixed` profiles; an
-optional active copy lives at `~/.pi/agent/metonia-routing.json`. Edit or
-replace those mappings without changing vault plans or skill semantics.
+the automatic candidate policy plus `portable`, `codex`, `opencode-go`,
+`claude`, and `mixed` manual profiles. An optional active copy lives at
+`~/.pi/agent/metonia-routing.json`. Edit candidate order or manual mappings
+without changing vault plans or skill semantics.
 
 `bounded-write` may run only when scope and checks are exact, the total write
 set is at most three files, risk is low, effects are local, no human gate or
@@ -83,22 +95,23 @@ allowed only when the plan declares `retry: safe-once` and `idempotent: true`.
 ## Install or synchronize
 
 Clone the repository anywhere you control. To copy its skills and delegation
-extension into Pi's user-global directories, then create the local routing
-config:
+extension into Pi's user-global directories, then create or migrate the local
+automatic routing config:
 
 ```powershell
 pwsh ./scripts/sync-to-pi.ps1
-pwsh ./scripts/configure-routing.ps1 -Profile codex
+pwsh ./scripts/configure-routing.ps1 -Profile auto
 ```
 
-Pi can also install this repository directly; the provider-neutral `portable`
-profile works without another package or a routing file:
+Pi can also install this repository directly. The built-in automatic broker
+works without another package or a routing file:
 
 ```powershell
 pi install https://github.com/furkanilkturk/pi-skills
 ```
 
-Switch profiles without editing skills:
+Manual profiles are available for debugging, benchmarking, or an explicit
+provider-only session; normal use does not require switching them:
 
 ```powershell
 pwsh ./scripts/configure-routing.ps1 -Profile mixed
@@ -141,8 +154,9 @@ Pi can alternatively load the repository directly:
 }
 ```
 
-Direct loading uses `portable` when no local routing config exists. Create a
-local config only when you want specialized model mappings.
+Direct loading uses the built-in automatic candidate policy when no local
+routing config exists. Create a local config only to customize candidate order
+or use a manual profile.
 
 Do not configure both direct loading and a second divergent copy. Choose one
 canonical source and use `-Check` when keeping an installed mirror.

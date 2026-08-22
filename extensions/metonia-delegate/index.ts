@@ -4,12 +4,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { assertCapabilityControls, CAPABILITIES, resolveRoute } from "./routing.mjs";
+import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
 const OUTPUT_LIMIT = 60 * 1024;
+const MODEL_CACHE_MS = 60_000;
+
+let modelCache: { expiresAt: number; ids: Set<string> } | undefined;
 
 type Usage = {
 	input: number;
@@ -31,9 +34,22 @@ type RunDetails = {
 	status: string;
 	exitCode: number | null;
 	usage: Usage;
+	selectionSource: string;
+	availableModelCount?: number;
+	candidateIndex?: number;
+	brokerError?: string;
 	stderr?: string;
 	auditError?: string;
 };
+
+async function availableModelIds(signal: AbortSignal): Promise<Set<string>> {
+	if (modelCache && modelCache.expiresAt > Date.now()) return modelCache.ids;
+	const runtime = await ModelRuntime.create();
+	const models = await runtime.getAvailable(undefined, { signal });
+	const ids = new Set(models.map((model: any) => `${model.provider}/${model.id}`));
+	modelCache = { expiresAt: Date.now() + MODEL_CACHE_MS, ids };
+	return ids;
+}
 
 function piInvocation(args: string[]): { command: string; args: string[] } {
 	const currentScript = process.argv[1];
@@ -179,7 +195,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "metonia_delegate",
 		label: "Metonia Delegate",
-		description: "Run one Metonia task in a fresh Pi child using a provider-neutral capability, local model profile, injected skill, writer lock, acceptance contract, and audit record. Use only for Metonia coding/vault workflows; children cannot delegate again.",
+		description: "Run one Metonia task in a fresh Pi child. The automatic broker chooses the first capability-ranked model available through the current Pi logins, then falls back to the parent model. Use only for Metonia coding/vault workflows; children cannot delegate again.",
 		parameters: Parameters,
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const runId = randomUUID();
@@ -194,7 +210,22 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const skillPath = path.join(getAgentDir(), "skills", params.skill, "SKILL.md");
 				if (!fs.existsSync(skillPath)) throw new Error(`installed skill not found: ${params.skill}`);
 
-				const route = resolveRoute(params.capability, { profile: params.profile });
+				const { config } = loadRoutingConfig();
+				const requestedProfile = params.profile ?? process.env.METONIA_ROUTING_PROFILE ?? config.active_profile;
+				let availableModels: Set<string> | undefined;
+				let brokerError: string | undefined;
+				if (requestedProfile === "auto") {
+					try {
+						availableModels = await availableModelIds(signal);
+					} catch (error: any) {
+						availableModels = new Set();
+						brokerError = error?.message ?? String(error);
+					}
+				}
+				const route = resolveRoute(params.capability, {
+					profile: requestedProfile,
+					availableModels,
+				});
 				const model = route.model === "$parent"
 					? ctx.model
 						? `${ctx.model.provider}/${ctx.model.id}:${ctx.thinkingLevel ?? "medium"}`
@@ -212,6 +243,10 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					status: "running",
 					exitCode: null,
 					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
+					selectionSource: route.selection_source,
+					availableModelCount: availableModels?.size,
+					candidateIndex: route.candidate_index ?? undefined,
+					brokerError,
 				};
 				assertCapabilityControls(params.capability, params.controls);
 				if (!READ_ONLY.has(params.capability)) releaseLock = acquireWriterLock(cwd);

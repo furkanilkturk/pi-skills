@@ -1,12 +1,12 @@
 ---
 name: metonia-orchestrator
-description: Route Metonia work through the first-party metonia_delegate Pi tool by capability and a local provider profile. Use when a Metonia coding plan, repository lookup, fresh review, critical decision, document ingest, or video ingest should run in a fresh child without hard-coding a provider into durable skills. Do not use inside an already delegated child or for unrelated ad hoc delegation.
+description: Route Metonia work through the first-party metonia_delegate Pi tool by capability and Pi's authenticated model catalog. Use when a Metonia coding plan, repository lookup, fresh review, critical decision, document ingest, or video ingest should run in a fresh child without hard-coding a provider into durable skills. Do not use inside an already delegated child or for unrelated ad hoc delegation.
 ---
 
 # Metonia Orchestrator
 
 Use the repo-owned `metonia_delegate` Pi tool. It launches one fresh Pi child,
-injects one Metonia skill, resolves a local provider/model profile, enforces a
+injects one Metonia skill, selects an authenticated model, enforces a
 writer lock and output contract, and appends a privacy-safe audit record. It has
 no dependency on `pi-subagents` or another delegation package.
 
@@ -29,6 +29,12 @@ Choose one capability before choosing a model:
 | `fresh-review` | Independent read-only inspection of the actual diff and evidence. |
 | `deep-decision` | A bounded high-impact decision that ordinary execution must not guess. |
 
+The role identity remains explicit after routing: reconnaissance uses `scout`,
+learning/source synthesis uses `researcher`, implementation uses `worker`,
+independent verification uses `reviewer`, and high-impact judgment uses
+`oracle`. Include the intended capability in the task; do not collapse these
+roles into a generic subagent.
+
 `bounded-write` is allowed only when risk is low, the base commit matches, all
 effects are local, no human gate or sensitive domain is involved, and both the
 write set and checks are exact. Any ambiguity or scope growth routes to
@@ -40,12 +46,16 @@ capabilities do not inherit coding review requirements.
 
 ## Resolve the route
 
-Do not choose a provider or model in the prompt. `metonia_delegate` resolves
-the chosen capability from `METONIA_ROUTING_CONFIG`, otherwise
-`~/.pi/agent/metonia-routing.json`. Pass `profile` only when the user explicitly
-selects a profile for this run. Otherwise the environment override or local
-`active_profile` applies. With no local file, the built-in `portable` profile
-inherits the parent model. If resolution fails, do not guess a provider/model.
+Do not choose a provider or model in the prompt. By default,
+`metonia_delegate` asks Pi for the models available through the current logins,
+then selects the first available candidate ranked for the capability. If no
+candidate is available or discovery fails, it inherits the parent model. This
+ranking is an explicit policy, not a live quality judgment.
+
+Pass `profile` only when the user explicitly requests a manual override for the
+run. `METONIA_ROUTING_PROFILE` and the local `active_profile` are lower-priority
+overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
+`~/.pi/agent/metonia-routing.json`, never in durable plans or work skills.
 
 ## Launch contract
 
@@ -56,6 +66,11 @@ inherits the parent model. If resolution fails, do not guess a provider/model.
 - Supply `controls` for `bounded-write` or `bounded-learning`; the runtime
   rejects an ineligible fast-lane call instead of trusting the model's label.
 - Allow only one writer in a cwd/worktree at a time.
+- Independent read-only scout/research/review calls may be emitted together;
+  Pi runs the tool calls in parallel by default. Keep a batch bounded to three
+  children.
+- Do not parallelize writers against the same cwd. Separate worktrees may run
+  independently when the plan explicitly owns their merge boundary.
 - Use `efficient-read`, `fresh-review`, and `deep-decision` as read-only roles.
 - Review is a workflow decision, not automatic: Quick and ordinary learning
   ingests may stop after deterministic evidence; Standard/Critical coding uses

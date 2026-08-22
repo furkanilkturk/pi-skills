@@ -13,12 +13,12 @@ commit and acceptance checks:
 5. short, clean document ingest;
 6. dense or low-confidence learning ingest.
 
-For each run record the selected role/model, input and output tokens, reported
-cost, wall time, acceptance result, reviewer blockers, retry/escalation, and
-final human correction count. Compare each proposed profile mapping with the
-current baseline. Keep a cheaper mapping only when acceptance pass rate and
-human correction rate stay equivalent for eligible cases; token or cost savings
-alone are insufficient.
+For each run record the selected role/model, selection source, input and output
+tokens, reported cost, wall time, acceptance result, reviewer blockers,
+retry/escalation, and final human correction count. Compare each proposed
+automatic candidate order or manual profile with the current baseline. Keep a
+cheaper mapping only when acceptance pass rate and human correction rate stay
+equivalent for eligible cases; token or cost savings alone are insufficient.
 
 Use at least three runs per case before changing a route. Do not reuse mutated
 worktrees or judge quality from the model's own completion claim; use the same

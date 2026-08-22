@@ -1,6 +1,80 @@
 {
   "schema_version": 1,
-  "active_profile": "portable",
+  "active_profile": "auto",
+  "auto_routes": {
+    "efficient-read": {
+      "agent": "scout",
+      "candidates": [
+        "openai-codex/gpt-5.6-luna:low",
+        "opencode-go/gpt-5.6-luna:low",
+        "opencode/claude-haiku-4-5:low",
+        "opencode-go/glm-5.1:low"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "bounded-write": {
+      "agent": "worker",
+      "candidates": [
+        "openai-codex/gpt-5.6-luna:medium",
+        "opencode-go/gpt-5.6-luna:medium",
+        "opencode-go/kimi-k2.7-code:medium",
+        "opencode/claude-sonnet-4-6:medium"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "standard-write": {
+      "agent": "worker",
+      "candidates": [
+        "openai-codex/gpt-5.6-terra:medium",
+        "opencode/claude-sonnet-4-6:medium",
+        "opencode-go/kimi-k2.7-code:medium"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "bounded-learning": {
+      "agent": "researcher",
+      "candidates": [
+        "openai-codex/gpt-5.6-luna:medium",
+        "opencode-go/gpt-5.6-luna:medium",
+        "opencode/claude-haiku-4-5:medium"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "deep-learning": {
+      "agent": "researcher",
+      "candidates": [
+        "opencode/claude-sonnet-4-6:medium",
+        "openai-codex/gpt-5.6-terra:medium",
+        "opencode-go/qwen3.7-plus:medium"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "fresh-review": {
+      "agent": "reviewer",
+      "candidates": [
+        "opencode/claude-sonnet-4-6:medium",
+        "openai-codex/gpt-5.6-terra:medium",
+        "opencode-go/qwen3.7-plus:medium"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    },
+    "deep-decision": {
+      "agent": "oracle",
+      "candidates": [
+        "openai-codex/gpt-5.6-sol:high",
+        "opencode/claude-opus-4-8:high",
+        "opencode-go/qwen3.8-max:high"
+      ],
+      "fallback": "$parent",
+      "context": "fresh"
+    }
+  },
   "profiles": {
     "portable": {
       "description": "Provider-neutral fallback: inherit the parent session model.",
@@ -8,8 +82,8 @@
         "efficient-read": { "agent": "scout", "model": "$parent", "context": "fresh" },
         "bounded-write": { "agent": "worker", "model": "$parent", "context": "fresh" },
         "standard-write": { "agent": "worker", "model": "$parent", "context": "fresh" },
-        "bounded-learning": { "agent": "worker", "model": "$parent", "context": "fresh" },
-        "deep-learning": { "agent": "worker", "model": "$parent", "context": "fresh" },
+        "bounded-learning": { "agent": "researcher", "model": "$parent", "context": "fresh" },
+        "deep-learning": { "agent": "researcher", "model": "$parent", "context": "fresh" },
         "fresh-review": { "agent": "reviewer", "model": "$parent", "context": "fresh" },
         "deep-decision": { "agent": "oracle", "model": "$parent", "context": "fresh" }
       }
@@ -20,8 +94,8 @@
         "efficient-read": { "agent": "scout", "model": "openai-codex/gpt-5.6-luna:low", "context": "fresh" },
         "bounded-write": { "agent": "worker", "model": "openai-codex/gpt-5.6-luna:medium", "context": "fresh" },
         "standard-write": { "agent": "worker", "model": "openai-codex/gpt-5.6-terra:medium", "context": "fresh" },
-        "bounded-learning": { "agent": "worker", "model": "openai-codex/gpt-5.6-luna:medium", "context": "fresh" },
-        "deep-learning": { "agent": "worker", "model": "openai-codex/gpt-5.6-terra:medium", "context": "fresh" },
+        "bounded-learning": { "agent": "researcher", "model": "openai-codex/gpt-5.6-luna:medium", "context": "fresh" },
+        "deep-learning": { "agent": "researcher", "model": "openai-codex/gpt-5.6-terra:medium", "context": "fresh" },
         "fresh-review": { "agent": "reviewer", "model": "openai-codex/gpt-5.6-terra:medium", "context": "fresh" },
         "deep-decision": { "agent": "oracle", "model": "openai-codex/gpt-5.6-sol:high", "context": "fresh" }
       }
@@ -32,8 +106,8 @@
         "efficient-read": { "agent": "scout", "model": "opencode-go/gpt-5.6-luna:low", "context": "fresh" },
         "bounded-write": { "agent": "worker", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
         "standard-write": { "agent": "worker", "model": "opencode-go/kimi-k2.7-code:medium", "context": "fresh" },
-        "bounded-learning": { "agent": "worker", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
-        "deep-learning": { "agent": "worker", "model": "opencode-go/qwen3.7-plus:medium", "context": "fresh" },
+        "bounded-learning": { "agent": "researcher", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
+        "deep-learning": { "agent": "researcher", "model": "opencode-go/qwen3.7-plus:medium", "context": "fresh" },
         "fresh-review": { "agent": "reviewer", "model": "opencode-go/qwen3.7-plus:medium", "context": "fresh" },
         "deep-decision": { "agent": "oracle", "model": "opencode-go/qwen3.8-max:high", "context": "fresh" }
       }
@@ -44,8 +118,8 @@
         "efficient-read": { "agent": "scout", "model": "opencode/claude-haiku-4-5:low", "context": "fresh" },
         "bounded-write": { "agent": "worker", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
         "standard-write": { "agent": "worker", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
-        "bounded-learning": { "agent": "worker", "model": "opencode/claude-haiku-4-5:medium", "context": "fresh" },
-        "deep-learning": { "agent": "worker", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
+        "bounded-learning": { "agent": "researcher", "model": "opencode/claude-haiku-4-5:medium", "context": "fresh" },
+        "deep-learning": { "agent": "researcher", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
         "fresh-review": { "agent": "reviewer", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
         "deep-decision": { "agent": "oracle", "model": "opencode/claude-opus-4-8:high", "context": "fresh" }
       }
@@ -56,8 +130,8 @@
         "efficient-read": { "agent": "scout", "model": "opencode-go/gpt-5.6-luna:low", "context": "fresh" },
         "bounded-write": { "agent": "worker", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
         "standard-write": { "agent": "worker", "model": "openai-codex/gpt-5.6-terra:medium", "context": "fresh" },
-        "bounded-learning": { "agent": "worker", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
-        "deep-learning": { "agent": "worker", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
+        "bounded-learning": { "agent": "researcher", "model": "opencode-go/gpt-5.6-luna:medium", "context": "fresh" },
+        "deep-learning": { "agent": "researcher", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
         "fresh-review": { "agent": "reviewer", "model": "opencode/claude-sonnet-4-6:medium", "context": "fresh" },
         "deep-decision": { "agent": "oracle", "model": "openai-codex/gpt-5.6-sol:high", "context": "fresh" }
       }
