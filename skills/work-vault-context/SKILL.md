@@ -31,8 +31,11 @@ When the user says to create or resume a work project:
 3. Read the company index if it exists
    (`wiki/projects/<Company>/<Company>.md`), or list `wiki/projects/<Company>/`
    for the project.
-4. If the project folder exists, read `index.md` + `rules.md` + `log.md`
-   (+ `skills.md` only if present). If not, create the folder from the template.
+4. If the project folder exists, read `index.md` + `rules.md`, then only the
+   `Current State` and `Open Questions` sections of `log.md` by default
+   (+ `skills.md` only if present). Read Decisions, latest Build Log entries,
+   Lessons Learned, or `archive/log-YYYY.md` only when the task needs that
+   history. If the project does not exist, create it from the template.
 5. Then inspect the actual repo files for the coding task.
 6. Update the project folder only with durable context: decisions, commands,
    architecture, recurring bugs, and lessons. Never create `skills.md` or
@@ -52,6 +55,11 @@ this policy stricter.
 - Keep company rules separate. Do not apply one company's rules to another
   unless the user asks.
 - Existing repo style beats generic advice.
+- Keep `Current State` to about 10 bullets. When `log.md` exceeds about 300
+  lines, move the oldest Build Log entries only to
+  `archive/log-YYYY.md`; never archive Current State or Open Questions. Keep
+  Decisions and Lessons unless genuinely unwieldy, and create/load archives
+  only when entries are moved/history is needed.
 - Small code fixes do not need notes unless they teach a reusable lesson.
 
 ## Living Concepts

@@ -34,7 +34,10 @@ Do not summarize every commit. Do not copy code.
 ## Workflow
 
 1. Identify the company and project folder (`wiki/projects/<Company>/<Project>/`).
-2. Identify the repo path from `index.md` frontmatter/body, or ask the user.
+2. Read `index.md` + `rules.md` and only the `Current State` and `Open
+   Questions` sections of `log.md` by default. Read Decisions, latest Build Log
+   entries, Lessons Learned, or an archive only when the update needs them.
+   Identify the repo path from `index.md` frontmatter/body, or ask the user.
 3. Inspect recent changes:
    - `git status --short`
    - recent commits, e.g. `git log --oneline -10`
@@ -42,14 +45,18 @@ Do not summarize every commit. Do not copy code.
 4. Inspect the current structure only where changed.
 5. Produce a short proposed update:
    - Context changes → `index.md`
+   - Current snapshot/open questions/Decisions/Lessons/Build Log → `log.md`
    - Rule changes → `rules.md`
-   - Decisions/Lessons/Build Log → `log.md`
    - Only touch `skills.md` if the project has custom skills and they changed
 6. Ask before writing if changes are ambiguous.
-7. Update the project folder files. Append to `wiki/Log.md` only for a
-   meaningful project change; skip no-op/tiny typo, formatting, or link-only
-   maintenance. Do not update `wiki/Index.md` unless a project route or hub is
-   new, renamed, or moved.
+7. Update the project folder files. Keep Current State to about 10 bullets. If
+   `log.md` exceeds about 300 lines, move its oldest Build Log entries only to
+   `archive/log-YYYY.md`; never archive Current State or Open Questions, and
+   keep Decisions/Lessons unless genuinely unwieldy. Create an archive only
+   when moving entries and read one only for history. Append to `wiki/Log.md`
+   only for a meaningful project change; skip no-op/tiny typo, formatting, or
+   link-only maintenance. Do not update `wiki/Index.md` unless a project route
+   or hub is new, renamed, or moved.
 
 ## Living Concepts Sync
 
@@ -68,7 +75,7 @@ business, or research — update `wiki/concepts/<Topic>.md`:
 - `index.md`: Goal, Context, Architecture, Important Folders, Commands,
   Knowledge Lens (links to living concepts)
 - `rules.md`: Rules / Preferences, What Not to Change, AI Instructions
-- `log.md`: Decisions, Open Questions, Build Log, Lessons Learned
+- `log.md`: Current State, Open Questions, Decisions, Build Log, Lessons Learned
 - `skills.md`: optional — only if the project needs custom AI skills
   (`workflows.md` for human workflows)
 

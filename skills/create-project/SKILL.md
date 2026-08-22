@@ -41,8 +41,11 @@ wiki/projects/<Company>/<Project>/
 ```
 
 Use `wiki/projects/_templates/Work Project Template.md` as the base. Create
-`index.md` + `rules.md` + `log.md`. Only create `skills.md` if the project needs
-custom AI skills, `workflows.md` only for human workflows — skip both otherwise.
+`index.md` + `rules.md` + `log.md`. Start `log.md` with `Current State` (about
+10 bullets maximum), then `Open Questions`, followed by Decisions, Build Log,
+and Lessons Learned. Do not pre-create an archive folder or file. Only create
+`skills.md` if the project needs custom AI skills, `workflows.md` only for human
+workflows — skip both otherwise.
 
 Always include links:
 

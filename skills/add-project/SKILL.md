@@ -37,8 +37,11 @@ then asking only necessary questions.
    - production/deploy notes if safe to store.
 6. Create the project folder `wiki/projects/<Company>/<Project>/` with
    `index.md` + `rules.md` + `log.md` from
-   `wiki/projects/_templates/Work Project Template.md`. Only add `skills.md` if
-   the project needs custom AI skills, `workflows.md` only for human workflows.
+   `wiki/projects/_templates/Work Project Template.md`. Start the log with
+   `Current State` (about 10 bullets maximum), then `Open Questions`, followed
+   by Decisions, Build Log, and Lessons Learned; do not pre-create archives.
+   Only add `skills.md` if the project needs custom AI skills, `workflows.md`
+   only for human workflows.
 
 ## Structure Conventions
 
