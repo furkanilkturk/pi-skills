@@ -91,7 +91,17 @@ it:
   executable work in `plans/<slug>/steps/<nn>-<slug>.md`. Repeat exact reads,
   files, checks, retry, idempotence, external effects, and human gates in every
   packet; do not duplicate the reconnaissance narrative.
-- Max ~10 steps; bigger goals become multiple plans (`<slug>-phase2`).
+- **Optional parallel groups** — sequential is the default. When independent
+  write steps will materially shorten execution, add a `Parallel Execution
+  Contract` that groups exact step numbers, names their completed dependencies,
+  requires one isolated worktree and non-overlapping `Files:` per step, and
+  records the integration owner, target, order, conflict policy (`block`), and
+  combined check. Do not create a group for trivial work or merely to use more
+  agents.
+- There is no fixed step count. Use as many bounded, verifiable steps as the
+  accepted goal needs. Use packets to keep the active context small; split into
+  multiple plans only when the work has genuinely separate acceptance,
+  release, or human-approval boundaries.
 
 ## Routing and Review
 
@@ -102,6 +112,10 @@ it:
   task contract, exact write set, stop conditions, and checks.
 - Route every other Standard or Critical implementation to the default
   `standard-write`. One child owns a write set or worktree at a time.
+- Derive parallelism from the ready dependency frontier, not a fixed child
+  count. Parallel writers require isolated worktrees, non-overlapping `Files:`,
+  and a plan-owned integration contract naming the target, owner, order,
+  conflict policy, and combined check. Otherwise keep writes sequential.
 - Quick needs no independent review unless stricter project rules require it.
   Standard and Critical require `fresh-review` that inspects
   the actual diff, controls, and validation evidence without editing.

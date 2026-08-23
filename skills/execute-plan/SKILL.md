@@ -64,6 +64,24 @@ Use this shape with actual absolute paths:
 For `standard-write`, omit `controls`; they are an executable guard for the
 bounded route, not a claim that changes the plan's scope.
 
+If the approved plan contains a `Parallel Execution Contract`, the parent owns
+the shared plan/vault status and may emit one `metonia_delegate` call per step
+in the current ready group in the same turn. Before launch it creates one
+isolated worktree per writer from the recorded base commit and verifies that
+the declared `Files:` sets do not overlap. Each child receives only its named
+step/packet, uses that worktree as `cwd`, must not edit the shared plan or vault,
+runs its step check, and returns `changed-files`, `commands-run`,
+`residual-risks`, and `commit-sha`. A child failure blocks only its dependants;
+unrelated successful work remains evidence, not permission to integrate early.
+
+After every required writer passes, the named parent or writer integrator
+combines commits into the declared target in the declared order and runs the
+combined check. Any conflict or ownership overlap blocks integration unless the
+approved contract already gives an exact resolution. Only then run the
+read-only fresh reviewer against the integrated diff. A reviewer never creates
+worktrees, merges commits, or resolves conflicts. Without this complete
+contract, execute writes sequentially in one cwd.
+
 After implementation evidence passes, use `fresh-review` with
 `skill: "review-plan"` for required independent review with the plan path,
 actual diff, commands/results, and residual risks. Keep the plan `in-progress` until required reviewer
@@ -97,9 +115,12 @@ selects the parent session; record that exception in the plan.
    - run the step's done-check;
    - pass → `done`; fail → retry only when `retry: safe-once` and
      `idempotent: true`; otherwise set the step `status: blocked`, paste the
-     error, set plan `status: blocked` with `blocked_reason:` and `resume_when:`,
-     then stop and report. A bounded-to-standard escalation consumes that one allowed
-     retry and must keep the same base commit, write set, and acceptance contract.
+   error, set plan `status: blocked` with `blocked_reason:` and `resume_when:`,
+   then stop and report. A bounded-to-standard escalation consumes that one allowed
+   retry and must keep the same base commit, write set, and acceptance contract.
+   For an authorized parallel group, the parent applies this state machine to
+   every ready member while each child is limited to its assigned step; the
+   integration contract replaces only scheduling, never step checks or gates.
 6. On a plan/repo mismatch:
    - **Strict:** do not explore or write off-plan. Block the step and plan with
      the mismatch and the condition needed to resume, then stop.

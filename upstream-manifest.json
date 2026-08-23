@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/furkanilkturk/metonia",
-  "source_commit": "a39dab39e68691076c3807ca0ce9f368f4e6123b",
+  "source_commit": "f152b26955fe24453cdabde38e3f06c7ae14e4d2",
   "skills": [
     {
       "name": "add-project",
@@ -8,7 +8,7 @@
     },
     {
       "name": "create-plan",
-      "sha256": "3295a18077489035537f798010590c86d4f692df8ba164a5c834798fdf359d36"
+      "sha256": "0cdd18ac0887cb249ad01b4c0118a17293db437d54ee2cfad82cf135f9cf1b34"
     },
     {
       "name": "create-project",
@@ -24,11 +24,11 @@
     },
     {
       "name": "execute-plan",
-      "sha256": "368942fbc3ec61b3a9036acf6b85e5bd1c1879eb24e81a766136dee2dbed5093"
+      "sha256": "0161db1dce26f56a75d8920e9c9457ccf6d71e024eb7e9a1b26e6884a688e0b5"
     },
     {
       "name": "metonia-orchestrator",
-      "sha256": "49c81c60f656641dbeb63f319b226fcda2846babded011be8f65858a18db200c"
+      "sha256": "cc275eca636b3a74944a3681d9c92cc961ce368e78844e1d45cac982cda96b28"
     },
     {
       "name": "review-plan",

@@ -85,10 +85,11 @@ write-capable children are never retried automatically.
 Routes preserve role identity: `scout` for reconnaissance, `researcher` for
 learning synthesis, `worker` for implementation, `reviewer` for independent
 verification, and `oracle` for high-impact decisions. Pi executes multiple tool
-calls from one model turn in parallel by default, so up to three independent
-read-only Metonia tasks can run concurrently. The cwd writer lock prevents
-competing writers; parallel write work requires separate worktrees and explicit
-merge ownership.
+calls from one model turn in parallel by default. The planner derives each wave
+from the useful non-conflicting ready frontier rather than a fixed child count.
+The cwd writer lock prevents competing writers; parallel write work requires
+separate worktrees, non-overlapping files, explicit integration ownership and
+order, and a combined verification before fresh review.
 
 Durable plans and work skills mention capability and role only; provider/model
 candidate policy is runtime-local configuration. `config/routing.example.json` ships

@@ -10,6 +10,7 @@ import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
 import { RunTracker } from "./run-tracker.mjs";
 import { buildAuditRecord, selectSkillCandidate, sha256, workspaceHash } from "./runtime-contract.mjs";
+import { acquireWriterLock } from "./writer-lock.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
 const OUTPUT_LIMIT = 60 * 1024;
@@ -161,52 +162,6 @@ function outputContract(agent: string, capability: string, criteria: string[], e
 	].join("\n");
 }
 
-function processAlive(pid: number): boolean {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (error: any) {
-		return error?.code === "EPERM";
-	}
-}
-
-function acquireWriterLock(cwd: string): () => void {
-	const lockDir = path.join(getAgentDir(), "metonia-locks");
-	fs.mkdirSync(lockDir, { recursive: true });
-	const key = workspaceHash(cwd);
-	const lockPath = path.join(lockDir, `${key}.lock`);
-
-	for (let attempt = 0; attempt < 2; attempt++) {
-		try {
-			const fd = fs.openSync(lockPath, "wx", 0o600);
-			try {
-				fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, cwd_sha256: key, started_at: new Date().toISOString() }));
-			} catch (error) {
-				try { fs.unlinkSync(lockPath); } catch { /* best effort */ }
-				throw error;
-			} finally {
-				fs.closeSync(fd);
-			}
-			return () => {
-				try { fs.unlinkSync(lockPath); } catch { /* already released */ }
-			};
-		} catch (error: any) {
-			if (error?.code !== "EEXIST") throw error;
-			try {
-				const stale = JSON.parse(fs.readFileSync(lockPath, "utf8"));
-				if (Number.isInteger(stale.pid) && !processAlive(stale.pid)) {
-					fs.unlinkSync(lockPath);
-					continue;
-				}
-			} catch (readError: any) {
-				if (readError?.code === "ENOENT") continue;
-			}
-			throw new Error("another Metonia writer is active for this working directory");
-		}
-	}
-	throw new Error("could not acquire the Metonia writer lock for this working directory");
-}
-
 function appendAudit(details: RunDetails, task: string): string | undefined {
 	try {
 		const auditPath = path.join(getAgentDir(), "metonia-runs.jsonl");
@@ -321,7 +276,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					brokerError,
 				};
 				assertCapabilityControls(params.capability, params.controls);
-				if (!READ_ONLY.has(params.capability)) releaseLock = acquireWriterLock(cwd);
+				if (!READ_ONLY.has(params.capability)) releaseLock = acquireWriterLock(getAgentDir(), cwd);
 
 				promptDir = fs.mkdtempSync(path.join(os.tmpdir(), "metonia-delegate-"));
 				const promptPath = path.join(promptDir, "contract.md");

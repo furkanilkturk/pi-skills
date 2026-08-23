@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -16,6 +17,7 @@ import {
   workspaceHash,
 } from "../extensions/metonia-delegate/runtime-contract.mjs";
 import { RunTracker } from "../extensions/metonia-delegate/run-tracker.mjs";
+import { acquireWriterLock } from "../extensions/metonia-delegate/writer-lock.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(repoRoot, "config", "routing.example.json");
@@ -108,6 +110,35 @@ assert.equal(trackerState.active.length, 0);
 assert.equal(trackerState.completed, 2);
 assert.equal(trackerState.issues, 1);
 assert.equal(trackerState.recent[0].status, "model-error");
+
+const adaptiveTracker = new RunTracker();
+for (let index = 0; index < 12; index++) {
+  adaptiveTracker.queue(`run-${index}`, "efficient-read", index);
+  adaptiveTracker.start(`run-${index}`, { agent: "scout", model: "provider/model:low" });
+}
+assert.equal(adaptiveTracker.snapshot().running, 12, "tracker must not impose a fixed agent ceiling");
+
+const lockAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "metonia-lock-test-"));
+const mainCwd = path.join(lockAgentDir, "repo");
+const worktreeCwd = path.join(lockAgentDir, "repo-worker-a");
+fs.mkdirSync(mainCwd);
+fs.mkdirSync(worktreeCwd);
+let releaseMain;
+let releaseWorktree;
+try {
+  releaseMain = acquireWriterLock(lockAgentDir, mainCwd);
+  assert.throws(
+    () => acquireWriterLock(lockAgentDir, mainCwd),
+    /another Metonia writer is active/,
+    "the same cwd must allow only one writer",
+  );
+  releaseWorktree = acquireWriterLock(lockAgentDir, worktreeCwd);
+  assert.notEqual(workspaceHash(mainCwd), workspaceHash(worktreeCwd));
+} finally {
+  releaseWorktree?.();
+  releaseMain?.();
+  fs.rmSync(lockAgentDir, { recursive: true, force: true });
+}
 
 for (const profile of profiles) {
   for (const capability of CAPABILITIES) {

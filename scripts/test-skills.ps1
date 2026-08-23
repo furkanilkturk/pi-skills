@@ -72,7 +72,11 @@ if ($contracts['metonia-orchestrator'] -notmatch 'parent session') { $failures.A
 foreach ($role in @('scout', 'researcher', 'worker', 'reviewer', 'oracle')) {
     if ($contracts['metonia-orchestrator'] -notmatch "``$role``") { $failures.Add("metonia-orchestrator lacks role $role") }
 }
-if ($contracts['metonia-orchestrator'] -notmatch 'runs the tool calls in parallel') { $failures.Add('metonia-orchestrator lacks bounded parallel-read guidance') }
+foreach ($parallelContract in @('ready frontier', 'no fixed agent count', 'in parallel by default')) {
+    if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape($parallelContract)) {
+        $failures.Add("metonia-orchestrator lacks adaptive parallel guidance: $parallelContract")
+    }
+}
 if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('metonia-orchestrator does not explicitly inject review-plan') }
 if ($contracts['execute-plan'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('execute-plan does not explicitly inject review-plan') }
 foreach ($contract in @('read-only', 'actual diff', 'plan-boundaries', 'commands-and-evidence', 'controls-and-gates', 'METONIA_RESULT: PASS', 'METONIA_RESULT: BLOCKED')) {

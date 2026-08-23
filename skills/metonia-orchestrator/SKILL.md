@@ -67,11 +67,18 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
 - Supply `controls` for `bounded-write` or `bounded-learning`; the runtime
   rejects an ineligible fast-lane call instead of trusting the model's label.
 - Allow only one writer in a cwd/worktree at a time.
-- Independent read-only scout/research/review calls may be emitted together;
-  Pi runs the tool calls in parallel by default. Keep a batch bounded to three
-  children.
+- Before delegating, identify the ready frontier: useful tasks whose
+  dependencies are satisfied and whose reads or write sets do not conflict.
+  Derive the wave size from that frontier; there is no fixed agent count. Emit
+  independent read-only scout/research/review calls in the same turn; Pi runs
+  the tool calls in parallel by default. Do not create duplicate or speculative
+  tasks merely to increase concurrency. Split a wave when its cost/rate budget
+  or one very slow task would dominate the batch.
 - Do not parallelize writers against the same cwd. Separate worktrees may run
-  independently when the plan explicitly owns their merge boundary.
+  independently only when the approved plan gives each writer a non-overlapping
+  write set and names the merge boundary, integration owner, integration order,
+  and combined verification. The parent or a named writer integrates; the
+  read-only reviewer never merges or resolves conflicts.
 - Use `efficient-read`, `fresh-review`, and `deep-decision` as read-only roles.
 - Review is a workflow decision, not automatic: Quick and ordinary learning
   ingests may stop after deterministic evidence; Standard/Critical coding uses
