@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
+import { buildAuditRecord, selectSkillCandidate, sha256, workspaceHash } from "./runtime-contract.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
 const OUTPUT_LIMIT = 60 * 1024;
@@ -38,7 +39,11 @@ type RunDetails = {
 	agent: string;
 	model: string;
 	cwd: string;
+	cwdHash: string;
 	skill: string;
+	skillSource: "bundled" | "global";
+	skillSha256: string;
+	skillCollision: "none" | "same-hash" | "different-hash";
 	status: string;
 	exitCode: number | null;
 	usage: Usage;
@@ -79,12 +84,16 @@ function finalText(message: any): string {
 		.join("\n");
 }
 
-function resolveSkillPath(skill: string): string | undefined {
+function resolveSkillPath(skill: string): { path: string; source: "bundled" | "global"; sha256: string; collision: "none" | "same-hash" | "different-hash" } | undefined {
 	const candidates = [
-		path.join(getAgentDir(), "skills", skill, "SKILL.md"),
-		path.join(bundledSkillsDir, skill, "SKILL.md"),
-	];
-	return candidates.find((candidate) => fs.existsSync(candidate));
+		{ path: path.join(bundledSkillsDir, skill, "SKILL.md"), source: "bundled" as const },
+		{ path: path.join(getAgentDir(), "skills", skill, "SKILL.md"), source: "global" as const },
+	].map((candidate) => {
+		const exists = fs.existsSync(candidate.path);
+		return { ...candidate, exists, sha256: exists ? sha256(fs.readFileSync(candidate.path)) : undefined };
+	});
+	const selected = selectSkillCandidate(candidates);
+	return selected && { path: selected.path, source: selected.source, sha256: selected.sha256!, collision: selected.collision };
 }
 
 function outputContract(agent: string, capability: string, criteria: string[], evidence: string[]): string {
@@ -119,14 +128,14 @@ function processAlive(pid: number): boolean {
 function acquireWriterLock(cwd: string): () => void {
 	const lockDir = path.join(getAgentDir(), "metonia-locks");
 	fs.mkdirSync(lockDir, { recursive: true });
-	const key = createHash("sha256").update(path.normalize(cwd).toLowerCase()).digest("hex");
+	const key = workspaceHash(cwd);
 	const lockPath = path.join(lockDir, `${key}.lock`);
 
 	for (let attempt = 0; attempt < 2; attempt++) {
 		try {
 			const fd = fs.openSync(lockPath, "wx", 0o600);
 			try {
-				fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, cwd, started_at: new Date().toISOString() }));
+				fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, cwd_sha256: key, started_at: new Date().toISOString() }));
 			} catch (error) {
 				try { fs.unlinkSync(lockPath); } catch { /* best effort */ }
 				throw error;
@@ -147,20 +156,16 @@ function acquireWriterLock(cwd: string): () => void {
 			} catch (readError: any) {
 				if (readError?.code === "ENOENT") continue;
 			}
-			throw new Error(`another Metonia writer is active for ${cwd}`);
+			throw new Error("another Metonia writer is active for this working directory");
 		}
 	}
-	throw new Error(`could not acquire the Metonia writer lock for ${cwd}`);
+	throw new Error("could not acquire the Metonia writer lock for this working directory");
 }
 
 function appendAudit(details: RunDetails, task: string): string | undefined {
 	try {
 		const auditPath = path.join(getAgentDir(), "metonia-runs.jsonl");
-		const record = {
-			timestamp: new Date().toISOString(),
-			...details,
-			task_sha256: createHash("sha256").update(task).digest("hex"),
-		};
+		const record = buildAuditRecord(details, task);
 		fs.appendFileSync(auditPath, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
 		return undefined;
 	} catch (error: any) {
@@ -223,8 +228,8 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				if (!/^[a-z0-9-]+$/.test(params.skill)) throw new Error("skill must be a hyphen-case installed skill name");
 				const cwd = path.resolve(ctx.cwd, params.cwd);
 				if (!fs.statSync(cwd).isDirectory()) throw new Error(`cwd is not a directory: ${cwd}`);
-				const skillPath = resolveSkillPath(params.skill);
-				if (!skillPath) throw new Error(`installed skill not found: ${params.skill}`);
+				const skill = resolveSkillPath(params.skill);
+				if (!skill) throw new Error(`installed skill not found: ${params.skill}`);
 
 				const { config } = loadRoutingConfig();
 				const requestedProfile = params.profile ?? process.env.METONIA_ROUTING_PROFILE ?? config.active_profile;
@@ -255,7 +260,11 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					agent: route.agent,
 					model,
 					cwd,
+					cwdHash: workspaceHash(cwd),
 					skill: params.skill,
+					skillSource: skill.source,
+					skillSha256: skill.sha256,
+					skillCollision: skill.collision,
 					status: "running",
 					exitCode: null,
 					usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 },
@@ -275,8 +284,8 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					? ["read", "grep", "find", "ls"]
 					: ["read", "bash", "edit", "write", "grep", "find", "ls"];
 				const args = [
-					"--mode", "json", "-p", "--no-session",
-					"--no-skills", "--skill", skillPath,
+					"--mode", "json", "-p", "--no-session", "--no-extensions",
+					"--no-skills", "--skill", skill.path,
 					"--model", model,
 					"--tools", tools.join(","),
 					"--exclude-tools", "metonia_delegate,subagent",
@@ -287,6 +296,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				onUpdate?.({ content: [{ type: "text", text: `${route.profile}/${params.capability}: ${model}` }], details });
 				let output = "";
 				let stderr = "";
+				let childModelError = false;
 				let timedOut = false;
 				const invocation = piInvocation(args);
 				const proc = spawn(invocation.command, invocation.args, {
@@ -302,6 +312,9 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					try {
 						const event = JSON.parse(line);
 						if (event.type !== "message_end") return;
+						if (event.message?.role === "assistant" && event.message?.stopReason === "error") {
+							childModelError = true;
+						}
 						const text = finalText(event.message);
 						if (text) output = text;
 						if (event.message?.role === "assistant") {
@@ -348,7 +361,9 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 
 				details.exitCode = exitCode;
 				details.stderr = stderr.trim().slice(0, 4000) || undefined;
-				const contract = validateResult(output, params.evidence);
+				const contract = childModelError
+					? { ok: false, status: "model-error", reason: "child model failed before producing a valid result; check provider authentication or quota" }
+					: validateResult(output, params.evidence);
 				if (timedOut) details.status = "timed-out";
 				else if (signal.aborted) details.status = "aborted";
 				else if (exitCode !== 0) details.status = "failed";

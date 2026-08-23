@@ -64,9 +64,9 @@ Use this shape with actual absolute paths:
 For `standard-write`, omit `controls`; they are an executable guard for the
 bounded route, not a claim that changes the plan's scope.
 
-After implementation evidence passes, use `fresh-review` for required
-independent review with the plan path, actual diff, commands/results, and
-residual risks. Keep the plan `in-progress` until required reviewer
+After implementation evidence passes, use `fresh-review` with
+`skill: "review-plan"` for required independent review with the plan path,
+actual diff, commands/results, and residual risks. Keep the plan `in-progress` until required reviewer
 blockers are resolved or explicitly deferred by the user. Execute directly in
 the parent only when `metonia_delegate` is unavailable or the user explicitly
 selects the parent session; record that exception in the plan.
@@ -127,7 +127,7 @@ selects the parent session; record that exception in the plan.
    - update concepts or project index metadata only when the approved plan names
      those files; otherwise leave them for `/update-project`.
 9. Apply the plan's acceptance contract. For a required review, use
-   `fresh-review` with the plan path, changed-file list,
+   `fresh-review` with `skill: "review-plan"`, the plan path, changed-file list,
    verification commands and results. It must inspect the actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
    review blockers are resolved or explicitly deferred by the user, set plan

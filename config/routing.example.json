@@ -47,8 +47,8 @@
     "deep-learning": {
       "agent": "researcher",
       "candidates": [
-        "opencode/claude-sonnet-4-6:medium",
         "openai-codex/gpt-5.6-terra:medium",
+        "opencode/claude-sonnet-4-6:medium",
         "opencode-go/qwen3.7-plus:medium"
       ],
       "fallback": "$parent",
@@ -57,8 +57,8 @@
     "fresh-review": {
       "agent": "reviewer",
       "candidates": [
-        "opencode/claude-sonnet-4-6:medium",
         "openai-codex/gpt-5.6-terra:medium",
+        "opencode/claude-sonnet-4-6:medium",
         "opencode-go/qwen3.7-plus:medium"
       ],
       "fallback": "$parent",

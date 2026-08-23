@@ -8,6 +8,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+if (-not $PSBoundParameters.ContainsKey('ConfigPath') -and -not [string]::IsNullOrWhiteSpace($env:PI_CODING_AGENT_DIR)) {
+    $ConfigPath = Join-Path $env:PI_CODING_AGENT_DIR 'metonia-routing.json'
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $examplePath = Join-Path $repoRoot 'config/routing.example.json'
 $resolverPath = Join-Path $repoRoot 'skills/metonia-orchestrator/scripts/resolve-routing.mjs'

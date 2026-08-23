@@ -7,7 +7,7 @@ description: Route Metonia work through the first-party metonia_delegate Pi tool
 
 Use the repo-owned `metonia_delegate` Pi tool. It launches one fresh Pi child,
 injects one Metonia skill, selects an authenticated model, enforces a
-writer lock and output contract, and appends a privacy-safe audit record. It has
+writer lock and output contract, and appends a minimal local audit record. It has
 no dependency on `pi-subagents` or another delegation package.
 
 ## Parent-only guard
@@ -55,7 +55,8 @@ ranking is an explicit policy, not a live quality judgment.
 Pass `profile` only when the user explicitly requests a manual override for the
 run. `METONIA_ROUTING_PROFILE` and the local `active_profile` are lower-priority
 overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
-`~/.pi/agent/metonia-routing.json`, never in durable plans or work skills.
+`$PI_CODING_AGENT_DIR/metonia-routing.json` when configured (otherwise
+`~/.pi/agent/metonia-routing.json`), never in durable plans or work skills.
 
 ## Launch contract
 
@@ -74,7 +75,7 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
 - Use `efficient-read`, `fresh-review`, and `deep-decision` as read-only roles.
 - Review is a workflow decision, not automatic: Quick and ordinary learning
   ingests may stop after deterministic evidence; Standard/Critical coding uses
-  `fresh-review` when its plan requires it.
+  `fresh-review` with `skill: "review-plan"` when its plan requires it.
 - If `metonia_delegate` is unavailable, run in the current session and report
   the routing exception.
 
@@ -91,6 +92,6 @@ Use this call shape:
 }
 ```
 
-For review, pass the plan path, actual diff, commands/results, and residual
-risks. For `deep-decision`, request a decision with alternatives, evidence,
+For review, explicitly inject `review-plan` and pass the plan path, actual
+diff, commands/results, and residual risks. For `deep-decision`, request a decision with alternatives, evidence,
 tradeoffs, and the condition requiring human approval; do not let it mutate.

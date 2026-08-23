@@ -12,6 +12,7 @@ $configureScript = Join-Path $PSScriptRoot 'configure-routing.ps1'
 $resolverPath = Join-Path $skillsRoot 'metonia-orchestrator/scripts/resolve-routing.mjs'
 $runtimePath = Join-Path $repoRoot 'extensions/metonia-delegate/index.ts'
 $routingPath = Join-Path $repoRoot 'extensions/metonia-delegate/routing.mjs'
+$runtimeContractPath = Join-Path $repoRoot 'extensions/metonia-delegate/runtime-contract.mjs'
 $routingExamplePath = Join-Path $repoRoot 'config/routing.example.json'
 $routingTestPath = Join-Path $PSScriptRoot 'test-routing.mjs'
 $failures = [System.Collections.Generic.List[string]]::new()
@@ -45,6 +46,7 @@ $contracts = @{
     'doc-learning' = Get-Content -LiteralPath (Join-Path $skillsRoot 'doc-learning/SKILL.md') -Raw
     'video-learning' = Get-Content -LiteralPath (Join-Path $skillsRoot 'video-learning/SKILL.md') -Raw
     'metonia-orchestrator' = Get-Content -LiteralPath (Join-Path $skillsRoot 'metonia-orchestrator/SKILL.md') -Raw
+    'review-plan' = Get-Content -LiteralPath (Join-Path $skillsRoot 'review-plan/SKILL.md') -Raw
 }
 
 foreach ($name in @('execute-plan', 'doc-learning', 'video-learning')) {
@@ -71,15 +73,21 @@ foreach ($role in @('scout', 'researcher', 'worker', 'reviewer', 'oracle')) {
     if ($contracts['metonia-orchestrator'] -notmatch "``$role``") { $failures.Add("metonia-orchestrator lacks role $role") }
 }
 if ($contracts['metonia-orchestrator'] -notmatch 'runs the tool calls in parallel') { $failures.Add('metonia-orchestrator lacks bounded parallel-read guidance') }
+if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('metonia-orchestrator does not explicitly inject review-plan') }
+if ($contracts['execute-plan'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('execute-plan does not explicitly inject review-plan') }
+foreach ($contract in @('read-only', 'actual diff', 'plan-boundaries', 'commands-and-evidence', 'controls-and-gates', 'METONIA_RESULT: PASS', 'METONIA_RESULT: BLOCKED')) {
+    if ($contracts['review-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("review-plan lacks review contract: $contract") }
+}
 
-foreach ($runtimeFile in @($runtimePath, $routingPath, $routingExamplePath)) {
+foreach ($runtimeFile in @($runtimePath, $routingPath, $runtimeContractPath, $routingExamplePath)) {
     if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { $failures.Add("missing runtime file: $runtimeFile") }
 }
 if (Test-Path -LiteralPath $runtimePath) {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw
-    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-skills', '--exclude-tools')) {
+    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-extensions', '--no-skills', '--exclude-tools', 'buildAuditRecord', 'skillCollision')) {
         if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks safety contract: $contract") }
     }
+    if ($runtime.IndexOf('source: "bundled"') -gt $runtime.IndexOf('source: "global"')) { $failures.Add('runtime resolves global skills before bundled skills') }
     if ($runtime -match 'from\s+["'']pi-subagents') { $failures.Add('runtime imports pi-subagents') }
 }
 

@@ -21,6 +21,7 @@ outside durable vault plans and no third-party subagent package is required.
 | `delete-project` | Archive or delete project context safely. |
 | `create-plan` | Produce a Plan Schema v2 handoff for a fresh executor. |
 | `execute-plan` | Execute exact steps with evidence, gates, and fresh review. |
+| `review-plan` | Read-only post-execution review of the actual diff and plan controls. |
 | `metonia-orchestrator` | Map work capabilities to a local profile and fresh child. |
 
 ### Obsidian learning
@@ -46,8 +47,11 @@ uncertain, or highly technical sources use `deep-learning`.
 - truly read-only toolsets for reconnaissance/review/decision roles;
 - a cross-process writer lock per cwd;
 - required acceptance/evidence output; and
-- a privacy-safe audit line in `~/.pi/agent/metonia-runs.jsonl` (task hash, not
-  task text).
+- a minimal local audit line in
+  `$PI_CODING_AGENT_DIR/metonia-runs.jsonl` when configured (otherwise
+  `~/.pi/agent/metonia-runs.jsonl`): task and cwd hashes, status, route
+  metadata, and usage; never task text, absolute cwd, child stderr, or broker
+  diagnostics.
 
 It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
@@ -58,7 +62,9 @@ current logins and selects the first capability-ranked candidate. It therefore
 works across Codex, OpenCode Go, OpenCode/Claude, or any combination already
 authenticated in Pi. If no ranked candidate is available—or catalog discovery
 fails—it inherits the parent session model. The ranking is explicit policy,
-not a claim that the runtime can measure model quality live.
+not a claim that the runtime can measure model quality, quota, or billing health
+live. A child model error fails closed with an authentication/quota diagnostic;
+write-capable children are never retried automatically.
 
 ## Capability routing
 
@@ -80,10 +86,12 @@ read-only Metonia tasks can run concurrently. The cwd writer lock prevents
 competing writers; parallel write work requires separate worktrees and explicit
 merge ownership.
 
-Durable skills mention capabilities only. `config/routing.example.json` ships
+Durable plans and work skills mention capability and role only; provider/model
+candidate policy is runtime-local configuration. `config/routing.example.json` ships
 the automatic candidate policy plus `portable`, `codex`, `opencode-go`,
 `claude`, and `mixed` manual profiles. An optional active copy lives at
-`~/.pi/agent/metonia-routing.json`. Edit candidate order or manual mappings
+`$PI_CODING_AGENT_DIR/metonia-routing.json` when set (otherwise
+`~/.pi/agent/metonia-routing.json`). Edit candidate order or manual mappings
 without changing vault plans or skill semantics.
 
 `bounded-write` may run only when scope and checks are exact, the total write

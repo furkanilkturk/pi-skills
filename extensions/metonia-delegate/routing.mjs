@@ -58,8 +58,8 @@ const AUTO_ROUTES = {
   "deep-learning": {
     agent: "researcher",
     candidates: [
-      "opencode/claude-sonnet-4-6:medium",
       "openai-codex/gpt-5.6-terra:medium",
+      "opencode/claude-sonnet-4-6:medium",
       "opencode-go/qwen3.7-plus:medium",
     ],
     fallback: "$parent",
@@ -68,8 +68,8 @@ const AUTO_ROUTES = {
   "fresh-review": {
     agent: "reviewer",
     candidates: [
-      "opencode/claude-sonnet-4-6:medium",
       "openai-codex/gpt-5.6-terra:medium",
+      "opencode/claude-sonnet-4-6:medium",
       "opencode-go/qwen3.7-plus:medium",
     ],
     fallback: "$parent",
@@ -110,7 +110,8 @@ const PORTABLE_CONFIG = {
 };
 
 export function defaultRoutingConfigPath() {
-  return path.join(os.homedir(), ".pi", "agent", "metonia-routing.json");
+  const agentDir = process.env.PI_CODING_AGENT_DIR?.trim();
+  return path.join(agentDir ? path.resolve(agentDir) : path.join(os.homedir(), ".pi", "agent"), "metonia-routing.json");
 }
 
 export function loadRoutingConfig(configPath) {

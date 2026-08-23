@@ -8,6 +8,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+if (-not $PSBoundParameters.ContainsKey('Destination') -and -not [string]::IsNullOrWhiteSpace($env:PI_CODING_AGENT_DIR)) {
+    $Destination = Join-Path $env:PI_CODING_AGENT_DIR 'skills'
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'skills'
 $extensionSourceRoot = Join-Path $repoRoot 'extensions/metonia-delegate'
