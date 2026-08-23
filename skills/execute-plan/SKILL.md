@@ -113,7 +113,10 @@ selects the parent session; record that exception in the plan.
    complete reconnaissance history, or the plan `log.md`. The index's
    `Current Execution` section must contain enough state to resume. Read one
    exact linked log event only when that event is required to satisfy a resume,
-   approval, retry, or review gate.
+   approval, retry, or review gate. `Relevant History` is the planner's bounded
+   lineage summary; do not open its linked prior plans, decisions, lessons, or
+   concepts unless the active packet names that exact artifact as an authorized
+   read.
    For schema v2 verify `plan_schema`, `base_commit`, `risk`,
    `executor_profile`, and `review_profile` before changing files and honor each
    step's retry, idempotence, external-effect, and human-gate controls. A
@@ -173,8 +176,9 @@ selects the parent session; record that exception in the plan.
      `Current Execution` snapshot;
    - keep plan `status: in-progress` while required independent review is
      pending; a passing implementation check is necessary but not completion;
-   - update concepts or project index metadata only when the approved plan names
-     those files; otherwise leave them for `/update-project`.
+   - do not update project `index.md`, `log.md`, `rules.md`, Knowledge Lens, or
+     concepts. Those shared-vault writes belong only to `update-project`, even
+     when the implementation plan names them as context.
 9. Apply the plan's acceptance contract. For a required review, use
    `fresh-review` with `skill: "review-plan"`, the plan path, changed-file list,
    `reviewBase`, verification commands/results, and exact current plan-log event
@@ -182,12 +186,17 @@ selects the parent session; record that exception in the plan.
    automatic actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
    review blockers are resolved or explicitly deferred by the user, set plan
-   `status: done`, refresh project `log.md` Current State (about 10 bullets
-   maximum), and append one Build Log line (what shipped, deviations). If
-   `log.md` now exceeds about 300 lines, move the oldest Build Log entries only
-   to `archive/log-YYYY.md`; never archive Current State/Open Questions, and do
-   not create archive scaffolding before entries move. Small non-blocking
-   suggestions may be recorded as deferred.
+   `status: done` and append one final plan-log event containing the final diff
+   summary, verification result, review result, and deviations. Do not write any
+   project or concept page from the coding executor.
+
+   The parent must then run `update-project` exactly once as a separate
+   `standard-write` closeout with `cwd` set to the Metonia vault root. Give it
+   only the project path, completed plan path, final diff summary, review result,
+   and exact final plan-log event; never the complete plan log. `update-project`
+   owns the Build Log and every project/concept update. It still records the
+   completed plan when no reusable learning exists, reports
+   `Learning harvest: none`, and skips other project/concept writes.
    Escalate a critical unresolved decision with `deep-decision` and wait for
    the resulting human decision when scope or risk changes.
 

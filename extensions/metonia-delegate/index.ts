@@ -1,18 +1,28 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
-import { RunTracker } from "./run-tracker.mjs";
+import { isStaleContextError, RunTracker } from "./run-tracker.mjs";
 import { collectReviewContext } from "./review-context.mjs";
 import { buildAuditRecord, buildChildTransport, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
-import { acquireWriterLock } from "./writer-lock.mjs";
+import { acquireWriterLock, assertVaultRoot } from "./writer-lock.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
+const VAULT_WRITER_SKILLS = new Set([
+	"add-project",
+	"create-plan",
+	"create-project",
+	"delete-project",
+	"doc-learning",
+	"update-project",
+	"video-learning",
+]);
 const OUTPUT_LIMIT = 60 * 1024;
 const MODEL_CACHE_MS = 60_000;
 
@@ -96,8 +106,13 @@ function renderRunTracker(ctx: ExtensionContext): void {
 
 	if (snapshot.active.length === 0) {
 		widgetClearTimer = setTimeout(() => {
-			if (runTracker.snapshot().active.length === 0) ctx.ui.setWidget("metonia-agents", undefined);
-			widgetClearTimer = undefined;
+			try {
+				if (runTracker.snapshot().active.length === 0) ctx.ui.setWidget("metonia-agents", undefined);
+			} catch (error) {
+				if (!isStaleContextError(error)) throw error;
+			} finally {
+				widgetClearTimer = undefined;
+			}
 		}, 8000);
 		widgetClearTimer.unref?.();
 	}
@@ -144,13 +159,14 @@ function resolveSkillPath(skill: string): { path: string; source: "bundled" | "g
 	return selected && { path: selected.path, source: selected.source, sha256: selected.sha256!, collision: selected.collision };
 }
 
-function outputContract(agent: string, capability: string, criteria: string[], evidence: string[]): string {
+function outputContract(agent: string, capability: string, criteria: string[], evidence: string[], sharedVaultWrite: boolean): string {
 	const access = READ_ONLY.has(capability)
 		? "You are read-only. Do not call edit or write tools and do not mutate files through shell commands."
 		: "You are the only writer for this cwd. Stay inside the exact task scope and stop on scope growth.";
 	return [
 		`You are the Metonia ${agent} for capability ${capability}.`,
 		access,
+		...(sharedVaultWrite ? ["This is a shared-vault write. Re-read every target vault file after the lock is held and immediately before its first write; preserve unrelated concurrent sections."] : []),
 		"Do not delegate or spawn another agent. Start from only the supplied task, target skill, repository context files, and current working tree.",
 		"Acceptance criteria:",
 		...criteria.map((item) => `- ${item}`),
@@ -268,11 +284,13 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					brokerError,
 				};
 				assertCapabilityControls(params.capability, params.controls);
-				if (!READ_ONLY.has(params.capability)) releaseLock = acquireWriterLock(getAgentDir(), cwd);
+				const sharedVaultWrite = !READ_ONLY.has(params.capability) && VAULT_WRITER_SKILLS.has(params.skill);
+				const lockScope = sharedVaultWrite ? assertVaultRoot(cwd) : cwd;
+				if (!READ_ONLY.has(params.capability)) releaseLock = acquireWriterLock(getAgentDir(), lockScope);
 
 				promptDir = fs.mkdtempSync(path.join(os.tmpdir(), "metonia-delegate-"));
 				const promptPath = path.join(promptDir, "contract.md");
-				fs.writeFileSync(promptPath, outputContract(route.agent, params.capability, params.criteria, params.evidence), { encoding: "utf8", mode: 0o600 });
+				fs.writeFileSync(promptPath, outputContract(route.agent, params.capability, params.criteria, params.evidence, sharedVaultWrite), { encoding: "utf8", mode: 0o600 });
 
 				const tools = READ_ONLY.has(params.capability)
 					? ["read", "grep", "find", "ls"]

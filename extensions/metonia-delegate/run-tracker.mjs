@@ -1,5 +1,9 @@
 const SUCCESS = new Set(["passed"]);
 
+export function isStaleContextError(error) {
+  return String(error?.message ?? error ?? "").includes("extension ctx is stale");
+}
+
 export class RunTracker {
   constructor(historyLimit = 4) {
     this.historyLimit = historyLimit;

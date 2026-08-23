@@ -22,8 +22,8 @@ import {
   workspaceHash,
 } from "../extensions/metonia-delegate/runtime-contract.mjs";
 import { collectReviewContext } from "../extensions/metonia-delegate/review-context.mjs";
-import { RunTracker } from "../extensions/metonia-delegate/run-tracker.mjs";
-import { acquireWriterLock } from "../extensions/metonia-delegate/writer-lock.mjs";
+import { isStaleContextError, RunTracker } from "../extensions/metonia-delegate/run-tracker.mjs";
+import { acquireWriterLock, assertVaultRoot } from "../extensions/metonia-delegate/writer-lock.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(repoRoot, "config", "routing.example.json");
@@ -101,6 +101,9 @@ assert.equal(JSON.stringify(audit).includes("private-user"), false);
 assert.equal(JSON.stringify(audit).includes("private stderr"), false);
 assert.equal(JSON.stringify(audit).includes("private broker diagnostic"), false);
 assert.ok(runtimeSource.includes("collectReviewContext"), "fresh review must support automatic Git context");
+assert.ok(runtimeSource.includes("VAULT_WRITER_SKILLS"), "runtime must distinguish shared-vault writers");
+assert.ok(runtimeSource.includes("assertVaultRoot(cwd)"), "shared-vault writers must lock from the vault root");
+assert.ok(runtimeSource.includes("Re-read every target vault file"), "vault writer contract must defend concurrent sections");
 assert.ok(
   runtimeSource.indexOf('source: "bundled"') < runtimeSource.indexOf('source: "global"'),
   "bundled skill candidates must precede global candidates",
@@ -142,6 +145,7 @@ assert.equal(
 );
 assert.equal(classifyRuntimeFailure({ code: "ENOENT" }), "spawn-command-not-found");
 assert.equal(classifyRuntimeFailure(new Error("another Metonia writer is active")), "writer-lock-conflict");
+assert.equal(classifyRuntimeFailure(new Error("vault writer requires cwd to be the Metonia vault root")), "vault-root-required");
 assert.equal(safeFailureReason("contract-missing-result"), "contract-missing-result");
 assert.equal(safeFailureReason("private provider error"), undefined);
 
@@ -151,6 +155,8 @@ for (const marker of ["AUTOMATIC_REVIEW_CONTEXT", "base:", "head:", "git status 
 }
 
 const tracker = new RunTracker(2);
+assert.equal(isStaleContextError(new Error("This extension ctx is stale after session replacement")), true);
+assert.equal(isStaleContextError(new Error("ordinary UI failure")), false);
 tracker.queue("queued", "efficient-read", 1);
 tracker.queue("running", "fresh-review", 2);
 tracker.start("running", { agent: "reviewer", model: "provider/model:medium" });
@@ -177,8 +183,13 @@ assert.equal(adaptiveTracker.snapshot().running, 12, "tracker must not impose a 
 const lockAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "metonia-lock-test-"));
 const mainCwd = path.join(lockAgentDir, "repo");
 const worktreeCwd = path.join(lockAgentDir, "repo-worker-a");
+const vaultCwd = path.join(lockAgentDir, "vault");
 fs.mkdirSync(mainCwd);
 fs.mkdirSync(worktreeCwd);
+fs.mkdirSync(path.join(vaultCwd, "wiki", "projects"), { recursive: true });
+fs.mkdirSync(path.join(vaultCwd, "wiki", "concepts"), { recursive: true });
+assert.equal(assertVaultRoot(vaultCwd), path.resolve(vaultCwd));
+assert.throws(() => assertVaultRoot(mainCwd), /vault writer requires cwd/);
 let releaseMain;
 let releaseWorktree;
 try {

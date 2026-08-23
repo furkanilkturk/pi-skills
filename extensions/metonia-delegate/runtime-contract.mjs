@@ -15,6 +15,7 @@ const SAFE_FAILURE_REASONS = new Set([
   "spawn-command-not-found",
   "timeout",
   "writer-lock-conflict",
+  "vault-root-required",
 ]);
 
 export function sha256(value) {
@@ -94,6 +95,7 @@ export function classifyRuntimeFailure(error) {
   const message = String(error?.message ?? error ?? "").toLowerCase();
   if (code === "ENOENT") return "spawn-command-not-found";
   if (message.includes("another metonia writer is active")) return "writer-lock-conflict";
+  if (message.includes("vault writer requires cwd")) return "vault-root-required";
   if (message.includes("cwd is not a directory")) return "invalid-cwd";
   if (message.includes("installed skill not found")) return "skill-not-found";
   if (message.includes("requires controls") || message.includes("use standard-write") || message.includes("use deep-learning")) return "invalid-controls";

@@ -9,6 +9,17 @@ Vault path: discover the Metonia vault by reading the `METONIA_VAULT`
 environment variable, or by asking the user for the path. There is no
 machine-specific fallback.
 
+## Pi Orchestration
+
+In a parent session, load `metonia-orchestrator` and call `metonia_delegate`
+once with `capability: "standard-write"`, `skill: "update-project"`, and `cwd`
+set to the Metonia vault root. Supply the bounded closeout/update evidence and
+target project path. The runtime rejects a repo cwd so all project and shared
+concept writes use one vault-root lock. When this skill is injected into the
+child, update directly and do not delegate again. If `metonia_delegate` is
+unavailable, run in the current session, disclose that the shared lock was not
+available, and still re-read targets immediately before writing.
+
 ## Goal
 
 Refresh the project note so it remains a useful map of the codebase, not a copy
@@ -34,6 +45,8 @@ Do not summarize every commit. Do not copy code.
 ## Workflow
 
 1. Identify the company and project folder (`wiki/projects/<Company>/<Project>/`).
+   For a delegated write, set child `cwd` to the Metonia vault root, never the
+   code repository; the shared-vault writer lock is keyed from that root.
 2. Read `index.md` + `rules.md` and only the `Current State` and `Open
    Questions` sections of `log.md` by default. Read Decisions, latest Build Log
    entries, Lessons Learned, or an archive only when the update needs them.
@@ -42,6 +55,9 @@ Do not summarize every commit. Do not copy code.
    - `git status --short`
    - recent commits, e.g. `git log --oneline -10`
    - if needed, `git diff --stat` and targeted diffs
+   When invoked as plan closeout, prefer the supplied final diff summary,
+   reviewer result, plan path, and exact final plan-log event; do not reload the
+   complete plan log or rediscover already verified evidence.
 4. Inspect the current structure only where changed.
 5. Produce a short proposed update:
    - Context changes → `index.md`
@@ -49,7 +65,9 @@ Do not summarize every commit. Do not copy code.
    - Rule changes → `rules.md`
    - Only touch `skills.md` if the project has custom skills and they changed
 6. Ask before writing if changes are ambiguous.
-7. Update the project folder files. Keep Current State to about 10 bullets. If
+7. After the writer lock is held, re-read every target vault file immediately
+   before its first write and preserve unrelated/concurrent sections. Update the
+   project folder files. Keep Current State to about 10 bullets. If
    `log.md` exceeds about 300 lines, move its oldest Build Log entries only to
    `archive/log-YYYY.md`; never archive Current State or Open Questions, and
    keep Decisions/Lessons unless genuinely unwieldy. Create an archive only
@@ -67,8 +85,42 @@ business, or research — update `wiki/concepts/<Topic>.md`:
   `## <Project> — how we use/learned <Topic>` subsection + backlink (match the
   page's existing project-heading level; default `##`).
 - Keep the concept as a single live page shared across projects.
+- Preserve other projects' sections. Update or merge this project's existing
+  subsection instead of creating duplicates, and describe what is distinct
+  about this project's use rather than copying generic library documentation.
+- Link the project subsection to the exact completed plan or final plan-log
+  event that proves it. Add the concept to the project's Knowledge Lens when it
+  is not already linked.
+- New durable Decision and Lesson bullets must end in a unique stable block ID:
+  `^decision-YYYYMMDD-<slug>` or `^lesson-YYYYMMDD-<slug>`. Later plans link
+  that exact block, never the whole Decisions/Lessons section.
 - One-off or project-specific facts stay in `log.md`; skip concept creation for
   tiny fixes.
+
+## Plan Closeout and Learning Harvest
+
+After reviewed plan execution, treat `update-project` as a separate vault-write
+phase, never as extra work for coding workers:
+
+1. Append exactly one Build Log line naming the completed plan and exact final
+   event. This completion record is mandatory even when no reusable learning
+   exists. `execute-plan` must not write it.
+2. Update Current State, Open Questions, Decisions, Lessons, rules, or project
+   index only when the reviewed evidence changed durable truth.
+3. Promote at most three reusable ideas to living concepts. Each
+   project-specific subsection must state the evidenced difference in usage and
+   backlink to the completed plan or exact final event. Do not alter another
+   project's subsection.
+4. The new plan's
+   `Relevant History` links create reverse Obsidian backlinks automatically; do
+   not edit historical plans merely to manufacture bidirectional links.
+5. If there is no durable context or reusable lesson beyond the completion
+   record, make no other project/concept edits and report
+   `Learning harvest: none`.
+
+This closes the forward loop for later planners without adding execution-time
+context: `create-plan` performs the bounded reverse lookup, while executors open
+only history explicitly named by their active packet.
 
 ## Suggested Project Folder Sections
 

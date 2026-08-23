@@ -42,8 +42,18 @@ export function acquireWriterLock(agentDir, cwd) {
       } catch (readError) {
         if (readError?.code === "ENOENT") continue;
       }
-      throw new Error("another Metonia writer is active for this working directory");
+      throw new Error("another Metonia writer is active for this lock scope");
     }
   }
-  throw new Error("could not acquire the Metonia writer lock for this working directory");
+  throw new Error("could not acquire the Metonia writer lock for this lock scope");
+}
+
+export function assertVaultRoot(cwd) {
+  const resolved = path.resolve(cwd);
+  for (const relative of ["wiki/projects", "wiki/concepts"]) {
+    if (!fs.existsSync(path.join(resolved, relative))) {
+      throw new Error("vault writer requires cwd to be the Metonia vault root");
+    }
+  }
+  return resolved;
 }

@@ -66,8 +66,11 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
   acceptance criteria, and evidence requirements.
 - Supply `controls` for `bounded-write` or `bounded-learning`; the runtime
   rejects an ineligible fast-lane call instead of trusting the model's label.
-- Allow only one writer in a cwd/worktree at a time. Read-only roles never need
-  a worktree; a retry/correction stays in the same writer worktree.
+- Allow only one writer in a cwd/worktree at a time. Vault-mutating skills must
+  use the Metonia vault root as `cwd`; the runtime rejects another cwd and keys
+  their shared writer lock from that root. Code executors keep the repo/worktree
+  cwd. Read-only roles never need a worktree; a retry/correction stays in the
+  same writer worktree.
 - Same-scope deterministic repairs follow the plan's retry policy: `safe-once`
   allows one correction, `safe-twice` allows two, and `never` allows none.
   Repairs require idempotence, no external effect, the same writer worktree,

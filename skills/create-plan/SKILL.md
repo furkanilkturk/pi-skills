@@ -42,6 +42,14 @@ model route never broadens scope. Any ambiguity, plan/repo mismatch, unexpected
 dependency, failed safety check, or expanding write set removes bounded-write
 eligibility; stop and return evidence instead of exploring.
 
+The capable planner owns `Relevant History` selection and readiness. An
+`efficient-read` scout may return only the bounded candidate table (path,
+title/status, exact block ID or concept-subsection heading, and match reason);
+it must not open prior plan logs, author the final history section, or mark the
+plan ready. The planner reads only allowed exact snippets, selects the links,
+and passes the validator. Do not route semantic lineage selection to a low-cost
+scout merely because discovery is read-only.
+
 ## Workflow
 
 1. Identify the company and project folder
@@ -49,19 +57,51 @@ eligibility; stop and return evidence instead of exploring.
 2. Read `index.md` + `rules.md`, then only `Current State` and `Open Questions`
    from `log.md` by default. Read Decisions, latest Build Log entries, Lessons,
    or an archive only when task-relevant. Read the repo only as needed to name
-   exact files.
-3. Follow **Planning and Execution** in `wiki/projects/Work Context System.md`.
+   exact files. Here `index.md` and `rules.md` mean the exact files inside the
+   selected project folder; do not open vault-wide `wiki/Index.md` or
+   `wiki/Rules.md` for lineage discovery.
+3. Perform one bounded lineage check before repo reconnaissance. Use one
+   metadata/heading search and admit at most twelve candidates: the six most
+   recently updated prior plan indexes (title, status, and at most two exact
+   relevant sections, 60 lines total), three task-keyword-matched Decision or
+   Lesson lines with stable `^decision-*`/`^lesson-*` block IDs, and three
+   project-specific concept subsections linked directly from Knowledge Lens.
+   Skip catalog/index links such as `Concept Map`. Locate a concept subsection
+   with search, then read from its heading only through the next same-or-higher
+   heading, at most 60 lines; never open a whole concept page. Do not preload
+   prior plan logs, recon files, archives, or unaddressable legacy log bullets.
+   Select at most five exact artifacts whose evidence changes scope,
+   constraints, approach, risk, or checks.
+
+   Record the bounded scan under `## Relevant History`: first
+   `- history_check: complete`, then
+   `- history_scan: plan_indexes=<0-6>/6; log_events=<0-3>/3; concepts=<0-3>/3; selected=<0-5>/5`,
+   followed by one-line wikilinks for selected artifacts. If none qualify, use
+   `- history_check: complete — no relevant prior work`. A history link is
+   context, not permission to repeat an external action or widen the write set.
+   If targeted repo reconnaissance later surfaces a named reusable technology
+   not yet in Knowledge Lens, inspect only that exact concept's relevant
+   project/source subsection within the same three-concept and five-selection
+   limits; do not start another scan.
+4. Follow **Planning and Execution** in `wiki/projects/Work Context System.md`.
    Ask only decision-changing questions about goal, scope, constraints, done
    definition, or adaptive execution. Strict is the default.
-4. Create the directory `wiki/projects/<Company>/<Project>/plans/<slug>/` and
+5. Create the directory `wiki/projects/<Company>/<Project>/plans/<slug>/` and
    write its `index.md` plus `log.md` from
-   `wiki/projects/_templates/Plan Template.md`. Set `plan_schema: 2`, a
-   non-empty `base_commit` (or `no-repo`), `risk`, provider-neutral
+   `wiki/projects/_templates/Plan Template.md`. Set `plan_schema: 2`,
+   `lineage_schema: 1`, a non-empty `base_commit` (or `no-repo`), `risk`, provider-neutral
    `executor_profile` and `review_profile`, and `execution_mode: strict`.
    Use `adaptive` only after explicit user selection or approval and record that
    approval in the plan `log.md`. The Pi host maps an eligible executor through
    its local routing profile; keep model or provider names out of the plan.
-5. Set plan frontmatter `status: ready` when the user approves it.
+6. Before readiness, run the vault's plan validator when available (for the
+   bundled vault, `scripts/vault-lint.ps1`). At minimum verify inside the actual
+   `Relevant History` section that `history_check`, valid `history_scan`, exact
+   anchors, candidate caps, one same-line decision-changing impact summary per
+   link, and `selected=<n>/5` matching the wikilink count all pass. A claimed
+   evidence label is not validation; keep the plan `draft` or `blocked` on any
+   mismatch.
+7. Set plan frontmatter `status: ready` only after validation and user approval.
 
 ## Executability Rules
 
@@ -104,6 +144,12 @@ it:
   Load only the active packet. Repeat exact reads,
   files, checks, retry, idempotence, external effects, and human gates in every
   packet; do not duplicate the reconnaissance narrative.
+- **Relevant history** — keep the index summary to at most five exact prior
+  plan, block-addressed decision/lesson, or project-specific concept-section
+  links and record the bounded `history_scan` counts. State in one line why each
+  item changes this plan. Do not update a concept while planning from a
+  hypothesis; concept writes require completed, reviewed evidence through
+  `update-project`.
 - **Optional parallel groups** — sequential is the default. Derive a group from
   the dynamic ready dependency frontier only when meaningful independent writer
   work will materially shorten execution. Read-only roles need no worktree.
@@ -141,8 +187,10 @@ it:
 ## Context Discipline
 
 Link the minimum: project index + rules always; concepts only for steps that
-touch them. If you cannot write a verifiable done-check for a step, split the
-step or ask the user.
+touch them. `Relevant History` is a planner-produced retrieval result, not a
+default executor read list: an executor opens a linked artifact only when its
+active packet names that exact link. If you cannot write a verifiable done-check
+for a step, split the step or ask the user.
 
 ## Efficiency
 

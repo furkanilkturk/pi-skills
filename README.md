@@ -43,6 +43,14 @@ packet; they read at most one exact linked log event when a gate requires it.
 Reviewers receive the same bounded record instead of the complete historical
 log.
 
+Planning closes the knowledge loop without widening executor context.
+`create-plan` performs one bounded lineage check and records zero to five exact
+prior-plan, decision/lesson, or project-specific concept links under `Relevant
+History`. Executors do not open those artifacts unless the active packet names
+them. After reviewed work, a separate `update-project` closeout writes durable
+project truth and reusable evidenced differences to the current project's
+subsection on shared concept pages; coding workers never maintain concepts.
+
 ## First-party delegation runtime
 
 `extensions/metonia-delegate` registers one synchronous Pi tool:
@@ -102,7 +110,9 @@ learning synthesis, `worker` for implementation, `reviewer` for independent
 verification, and `oracle` for high-impact decisions. Pi executes multiple tool
 calls from one model turn in parallel by default. The planner derives each wave
 from the useful non-conflicting ready frontier rather than a fixed child count.
-The cwd writer lock prevents competing writers. Worktree count follows the
+The cwd writer lock prevents competing writers. Vault-mutating skills use the
+vault root as `cwd`, so different project repos still share one vault lock;
+code executors retain their repo/worktree lock. Worktree count follows the
 dynamic ready dependency frontier rather than a fixed number. Keep small work
 sequential; use separate worktrees only for approved independent writers with
 non-overlapping files, integration ownership, order, and combined verification.
