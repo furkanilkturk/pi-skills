@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -13,6 +14,13 @@ const OUTPUT_LIMIT = 60 * 1024;
 const MODEL_CACHE_MS = 60_000;
 
 let modelCache: { expiresAt: number; ids: Set<string> } | undefined;
+
+const bundledSkillsDir = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"..",
+	"skills",
+);
 
 type Usage = {
 	input: number;
@@ -69,6 +77,14 @@ function finalText(message: any): string {
 		.filter((part: any) => part?.type === "text" && typeof part.text === "string")
 		.map((part: any) => part.text)
 		.join("\n");
+}
+
+function resolveSkillPath(skill: string): string | undefined {
+	const candidates = [
+		path.join(getAgentDir(), "skills", skill, "SKILL.md"),
+		path.join(bundledSkillsDir, skill, "SKILL.md"),
+	];
+	return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
 function outputContract(agent: string, capability: string, criteria: string[], evidence: string[]): string {
@@ -207,8 +223,8 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				if (!/^[a-z0-9-]+$/.test(params.skill)) throw new Error("skill must be a hyphen-case installed skill name");
 				const cwd = path.resolve(ctx.cwd, params.cwd);
 				if (!fs.statSync(cwd).isDirectory()) throw new Error(`cwd is not a directory: ${cwd}`);
-				const skillPath = path.join(getAgentDir(), "skills", params.skill, "SKILL.md");
-				if (!fs.existsSync(skillPath)) throw new Error(`installed skill not found: ${params.skill}`);
+				const skillPath = resolveSkillPath(params.skill);
+				if (!skillPath) throw new Error(`installed skill not found: ${params.skill}`);
 
 				const { config } = loadRoutingConfig();
 				const requestedProfile = params.profile ?? process.env.METONIA_ROUTING_PROFILE ?? config.active_profile;

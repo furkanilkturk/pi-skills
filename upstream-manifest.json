@@ -1,15 +1,46 @@
 {
   "repository": "https://github.com/furkanilkturk/metonia",
-  "source_commit": "e09cd887826aeac3f99b86d85fc4d1a97a88fe92",
+  "source_commit": "d80cffde5a44d1ca6e3d77b4b73fa5d9308e1e6f",
   "skills": [
-    { "name": "add-project", "sha256": "d5d17d6fb861e7de5360182586d00d7a44b1c6df49a5ae1af36e62553da9b1cb" },
-    { "name": "create-plan", "sha256": "3458bd407bf5cfe5aee4c334972e4061e12362cabec984531d49d5fcb240bf95" },
-    { "name": "create-project", "sha256": "e4447e36c647b74937106fde51e0890f28ca81cd5a903760692e8c30e7a0789d" },
-    { "name": "delete-project", "sha256": "329ebfa4623b4728e24a2c445667ac21dcc2d7b7359779b84dfe1c7750e57b18" },
-    { "name": "doc-learning", "sha256": "9a9db2be52c46fd758e2483efdf3693cfd9366855fa7986856bbd1329a8cf4e5" },
-    { "name": "execute-plan", "sha256": "d8fe80fcb5500be2064a0eb4cb655702c85de95f80cb45c63841ec3190b2c7c0" },
-    { "name": "update-project", "sha256": "fe6eecd104366bb804ab674318b5b930122f433c10bc5792f94ce2698f522c65" },
-    { "name": "video-learning", "sha256": "04cace99db7076d7fb7d7257fd40507645c0dc039a7d21c5ef3f6ca21ef339c9" },
-    { "name": "work-vault-context", "sha256": "54682351e91438d1027dd79064466f177145ae5963e7bc716f3764a056fbc460" }
+    {
+      "name": "add-project",
+      "sha256": "d5d17d6fb861e7de5360182586d00d7a44b1c6df49a5ae1af36e62553da9b1cb"
+    },
+    {
+      "name": "create-plan",
+      "sha256": "3295a18077489035537f798010590c86d4f692df8ba164a5c834798fdf359d36"
+    },
+    {
+      "name": "create-project",
+      "sha256": "e4447e36c647b74937106fde51e0890f28ca81cd5a903760692e8c30e7a0789d"
+    },
+    {
+      "name": "delete-project",
+      "sha256": "329ebfa4623b4728e24a2c445667ac21dcc2d7b7359779b84dfe1c7750e57b18"
+    },
+    {
+      "name": "doc-learning",
+      "sha256": "14fb061ee386dee60101216c60297c668cd91a2258f8c364311f0338bddc6223"
+    },
+    {
+      "name": "execute-plan",
+      "sha256": "2450495f6e73611594cc206ac10c4cc536d75ed0cb4ee865b5c3b5cac8eea0a3"
+    },
+    {
+      "name": "metonia-orchestrator",
+      "sha256": "46ce5110fd1968b6d68aa6f4d37856fbd047fec488364368466beb3578c0fe80"
+    },
+    {
+      "name": "update-project",
+      "sha256": "fe6eecd104366bb804ab674318b5b930122f433c10bc5792f94ce2698f522c65"
+    },
+    {
+      "name": "video-learning",
+      "sha256": "8898a948849c71f6fb59b8ad4216ac000ca8c7c3eb315610006dbf15a53ccd0a"
+    },
+    {
+      "name": "work-vault-context",
+      "sha256": "dc88837d7ea096a381cb7293289689f0337788b4636fc321696ba270ce6849e2"
+    }
   ]
 }

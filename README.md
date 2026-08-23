@@ -2,11 +2,11 @@
 
 Pi-native skills, delegation, and model routing for a Metonia vault.
 
-This repository is the canonical Pi deployment source. The installed
-files under `~/.pi/agent` are a mirror. The public Metonia repository may ship
-provider-neutral skill copies; this repository adds a small first-party Pi
-delegation extension and local routing profiles without putting provider names
-into durable vault plans or requiring a third-party subagent package.
+This repository is the canonical Pi development and local-sync source. The
+installed files under `~/.pi/agent` are a mirror. The public Metonia repository
+ships the same first-party extension and provider-neutral skill contracts so
+normal users can install Metonia without a second package. Provider names stay
+outside durable vault plans and no third-party subagent package is required.
 
 ## Skill groups
 
@@ -109,6 +109,10 @@ works without another package or a routing file:
 ```powershell
 pi install https://github.com/furkanilkturk/pi-skills
 ```
+
+Install either this package or `furkanilkturk/metonia`, never both: each
+registers the same `metonia_delegate` tool. Metonia users should normally choose
+the main repository; use this one for standalone Pi development or local sync.
 
 Manual profiles are available for debugging, benchmarking, or an explicit
 provider-only session; normal use does not require switching them:
