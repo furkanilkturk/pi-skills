@@ -55,6 +55,14 @@ uncertain, or highly technical sources use `deep-learning`.
   metadata, and usage; never task text, absolute cwd, child stderr, or broker
   diagnostics.
 
+Evidence labels are normalized for harmless underscore/space/hyphen variation,
+while the child prompt prints the exact labels it must return. Failed runs expose
+a short allowlisted reason such as `child-blocked`, `child-exit-nonzero`, or
+`contract-missing-evidence` in the widget and audit record without persisting
+private stderr. Fresh-review calls may set `reviewBase`; the broker then attaches
+the actual base-to-HEAD diff, changed-file list, status, branch, and worktree list
+instead of spending parent tokens restating Git evidence.
+
 It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
 background jobs, inter-agent chat, and automatic worktree management.

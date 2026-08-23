@@ -39,6 +39,7 @@ export class RunTracker {
       ...current,
       agent: details.agent ?? current.agent,
       model: details.model ?? current.model,
+      failureReason: details.failureReason,
       phase: "done",
       status,
       finishedAt: now,

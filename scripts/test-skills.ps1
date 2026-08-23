@@ -13,6 +13,7 @@ $resolverPath = Join-Path $skillsRoot 'metonia-orchestrator/scripts/resolve-rout
 $runtimePath = Join-Path $repoRoot 'extensions/metonia-delegate/index.ts'
 $routingPath = Join-Path $repoRoot 'extensions/metonia-delegate/routing.mjs'
 $runtimeContractPath = Join-Path $repoRoot 'extensions/metonia-delegate/runtime-contract.mjs'
+$reviewContextPath = Join-Path $repoRoot 'extensions/metonia-delegate/review-context.mjs'
 $routingExamplePath = Join-Path $repoRoot 'config/routing.example.json'
 $routingTestPath = Join-Path $PSScriptRoot 'test-routing.mjs'
 $failures = [System.Collections.Generic.List[string]]::new()
@@ -83,12 +84,12 @@ foreach ($contract in @('read-only', 'actual diff', 'plan-boundaries', 'commands
     if ($contracts['review-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("review-plan lacks review contract: $contract") }
 }
 
-foreach ($runtimeFile in @($runtimePath, $routingPath, $runtimeContractPath, $routingExamplePath)) {
+foreach ($runtimeFile in @($runtimePath, $routingPath, $runtimeContractPath, $reviewContextPath, $routingExamplePath)) {
     if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { $failures.Add("missing runtime file: $runtimeFile") }
 }
 if (Test-Path -LiteralPath $runtimePath) {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw
-    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-extensions', '--no-skills', '--exclude-tools', 'buildAuditRecord', 'skillCollision')) {
+    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-extensions', '--no-skills', '--exclude-tools', 'buildAuditRecord', 'skillCollision', 'collectReviewContext', 'reviewBase')) {
         if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks safety contract: $contract") }
     }
     if ($runtime.IndexOf('source: "bundled"') -gt $runtime.IndexOf('source: "global"')) { $failures.Add('runtime resolves global skills before bundled skills') }

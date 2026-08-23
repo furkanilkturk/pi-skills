@@ -12,10 +12,15 @@ import {
 import {
   auditErrorClass,
   buildAuditRecord,
+  classifyRuntimeFailure,
+  normalizeEvidenceLabel,
+  safeFailureReason,
   selectSkillCandidate,
   sha256,
+  validateResult,
   workspaceHash,
 } from "../extensions/metonia-delegate/runtime-contract.mjs";
+import { collectReviewContext } from "../extensions/metonia-delegate/review-context.mjs";
 import { RunTracker } from "../extensions/metonia-delegate/run-tracker.mjs";
 import { acquireWriterLock } from "../extensions/metonia-delegate/writer-lock.mjs";
 
@@ -75,6 +80,7 @@ const audit = buildAuditRecord({
   selectionSource: "auto-candidate",
   availableModelCount: 2,
   candidateIndex: 0,
+  failureReason: "contract-missing-evidence",
   stderr: "private stderr",
   brokerError: "private broker diagnostic",
 }, "private task content");
@@ -82,7 +88,9 @@ assert.equal(audit.schema_version, 2);
 assert.equal(audit.cwd_sha256, workspaceHash(privateCwd));
 assert.equal(audit.task_sha256, sha256("private task content"));
 assert.equal(audit.error_class, "contract");
+assert.equal(audit.failure_reason, "contract-missing-evidence");
 assert.equal(auditErrorClass("model-error"), "model");
+assert.equal(auditErrorClass("blocked"), "blocked");
 for (const prohibited of ["cwd", "stderr", "brokerError", "auditError"]) {
   assert.equal(Object.hasOwn(audit, prohibited), false, `audit leaked ${prohibited}`);
 }
@@ -90,10 +98,34 @@ assert.equal(JSON.stringify(audit).includes("private-user"), false);
 assert.equal(JSON.stringify(audit).includes("private stderr"), false);
 assert.equal(JSON.stringify(audit).includes("private broker diagnostic"), false);
 assert.ok(runtimeSource.includes('"--no-extensions"'), "child must disable extension discovery");
+assert.ok(runtimeSource.includes("collectReviewContext"), "fresh review must support automatic Git context");
 assert.ok(
   runtimeSource.indexOf('source: "bundled"') < runtimeSource.indexOf('source: "global"'),
   "bundled skill candidates must precede global candidates",
 );
+
+assert.equal(normalizeEvidenceLabel("Commands_Run"), "commands-run");
+assert.deepEqual(
+  validateResult("METONIA_RESULT: PASS\nMETONIA_EVIDENCE:\n- changed_files: clean\n- commands-run: PASS", ["changed-files", "commands-run"]),
+  { ok: true, status: "passed", reasonCode: "none" },
+);
+assert.equal(
+  validateResult("METONIA_RESULT: PASS\nMETONIA_EVIDENCE:\n- commands-run: PASS", ["changed-files", "commands-run"]).reasonCode,
+  "contract-missing-evidence",
+);
+assert.equal(
+  validateResult("METONIA_RESULT: BLOCKED\nMETONIA_EVIDENCE:\n- blocker: reason", ["blocker"]).reasonCode,
+  "child-blocked",
+);
+assert.equal(classifyRuntimeFailure({ code: "ENOENT" }), "spawn-command-not-found");
+assert.equal(classifyRuntimeFailure(new Error("another Metonia writer is active")), "writer-lock-conflict");
+assert.equal(safeFailureReason("contract-missing-result"), "contract-missing-result");
+assert.equal(safeFailureReason("private provider error"), undefined);
+
+const reviewContext = collectReviewContext(repoRoot, "HEAD");
+for (const marker of ["AUTOMATIC_REVIEW_CONTEXT", "base:", "head:", "git status --short:", "git diff --name-only base..head:", "git worktree list --porcelain:"]) {
+  assert.ok(reviewContext.includes(marker), `review context missing ${marker}`);
+}
 
 const tracker = new RunTracker(2);
 tracker.queue("queued", "efficient-read", 1);
@@ -104,12 +136,13 @@ assert.equal(trackerState.queued, 1);
 assert.equal(trackerState.running, 1);
 assert.equal(trackerState.completed, 0);
 tracker.finish("running", "passed", {}, 3);
-tracker.finish("queued", "model-error", { agent: "scout" }, 4);
+tracker.finish("queued", "model-error", { agent: "scout", failureReason: "child-model-error" }, 4);
 trackerState = tracker.snapshot();
 assert.equal(trackerState.active.length, 0);
 assert.equal(trackerState.completed, 2);
 assert.equal(trackerState.issues, 1);
 assert.equal(trackerState.recent[0].status, "model-error");
+assert.equal(trackerState.recent[0].failureReason, "child-model-error");
 
 const adaptiveTracker = new RunTracker();
 for (let index = 0; index < 12; index++) {

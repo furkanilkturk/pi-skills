@@ -9,7 +9,8 @@ import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
 import { RunTracker } from "./run-tracker.mjs";
-import { buildAuditRecord, selectSkillCandidate, sha256, workspaceHash } from "./runtime-contract.mjs";
+import { collectReviewContext } from "./review-context.mjs";
+import { buildAuditRecord, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
 import { acquireWriterLock } from "./writer-lock.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
@@ -57,6 +58,7 @@ type RunDetails = {
 	brokerError?: string;
 	stderr?: string;
 	auditError?: string;
+	failureReason?: string;
 };
 
 function shortModel(model?: string): string {
@@ -88,7 +90,8 @@ function renderRunTracker(ctx: ExtensionContext): void {
 	for (const run of snapshot.recent.slice(0, snapshot.active.length > 0 ? 2 : 4)) {
 		const passed = run.status === "passed";
 		const marker = passed ? ctx.ui.theme.fg("success", "✓ done") : ctx.ui.theme.fg("warning", `! ${run.status}`);
-		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}`);
+		const reason = !passed && run.failureReason ? ` · ${run.failureReason}` : "";
+		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}${reason}`);
 	}
 	ctx.ui.setWidget("metonia-agents", lines, { placement: "aboveEditor" });
 
@@ -158,7 +161,8 @@ function outputContract(agent: string, capability: string, criteria: string[], e
 		"METONIA_RESULT: PASS",
 		"or METONIA_RESULT: BLOCKED",
 		"METONIA_EVIDENCE:",
-		"- <evidence-name>: <result>",
+		...evidence.map((item) => `- ${item}: <result>`),
+		"Use those exact evidence labels. Do not rename, translate, merge, or omit them.",
 	].join("\n");
 }
 
@@ -173,18 +177,6 @@ function appendAudit(details: RunDetails, task: string): string | undefined {
 	}
 }
 
-function validateResult(output: string, evidence: string[]): { ok: boolean; status: string; reason?: string } {
-	if (/^METONIA_RESULT:\s*BLOCKED\s*$/mi.test(output)) return { ok: false, status: "blocked" };
-	if (!/^METONIA_RESULT:\s*PASS\s*$/mi.test(output)) {
-		return { ok: false, status: "invalid-contract", reason: "child omitted METONIA_RESULT" };
-	}
-	const missing = evidence.filter((name) => !output.toLowerCase().includes(name.toLowerCase()));
-	if (missing.length > 0) {
-		return { ok: false, status: "invalid-contract", reason: `missing evidence labels: ${missing.join(", ")}` };
-	}
-	return { ok: true, status: "passed" };
-}
-
 const Parameters = Type.Object({
 	capability: Type.Union(CAPABILITIES.map((value) => Type.Literal(value)), {
 		description: "Provider-neutral work class chosen before model selection",
@@ -194,6 +186,7 @@ const Parameters = Type.Object({
 	cwd: Type.String({ description: "Absolute or parent-cwd-relative working directory" }),
 	criteria: Type.Array(Type.String(), { minItems: 1, description: "Observable pass conditions" }),
 	evidence: Type.Array(Type.String(), { minItems: 1, description: "Named evidence the child must report" }),
+	reviewBase: Type.Optional(Type.String({ description: "Git base commit/ref used by fresh-review to attach an automatic read-only diff snapshot" })),
 	profile: Type.Optional(Type.String({ description: "Optional routing profile override for this run" })),
 	controls: Type.Optional(Type.Object({
 		risk: Type.Optional(Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high"), Type.Literal("critical")])),
@@ -285,6 +278,12 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const tools = READ_ONLY.has(params.capability)
 					? ["read", "grep", "find", "ls"]
 					: ["read", "bash", "edit", "write", "grep", "find", "ls"];
+				const automaticReviewContext = params.capability === "fresh-review"
+					? collectReviewContext(cwd, params.reviewBase)
+					: undefined;
+				const childTask = automaticReviewContext
+					? `${params.task}\n\n${automaticReviewContext}`
+					: params.task;
 				const args = [
 					"--mode", "json", "-p", "--no-session", "--no-extensions",
 					"--no-skills", "--skill", skill.path,
@@ -292,7 +291,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					"--tools", tools.join(","),
 					"--exclude-tools", "metonia_delegate,subagent",
 					"--append-system-prompt", promptPath,
-					params.task,
+					childTask,
 				];
 
 				onUpdate?.({ content: [{ type: "text", text: `${route.profile}/${params.capability}: ${model}` }], details });
@@ -300,6 +299,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				let stderr = "";
 				let childModelError = false;
 				let timedOut = false;
+				let processError: Error | undefined;
 				const invocation = piInvocation(args);
 				const proc = spawn(invocation.command, invocation.args, {
 					cwd,
@@ -357,25 +357,43 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const timeout = setTimeout(() => { timedOut = true; stop(); }, route.timeout_seconds * 1000);
 				const exitCode = await new Promise<number>((resolve) => {
 					proc.on("close", (code) => resolve(code ?? 1));
-					proc.on("error", () => resolve(1));
+					proc.on("error", (error) => {
+						processError = error;
+						resolve(1);
+					});
 				});
 				clearTimeout(timeout);
 				if (forceStop) clearTimeout(forceStop);
 				if (buffer.trim()) consume(buffer);
 
 				details.exitCode = exitCode;
-				details.stderr = stderr.trim().slice(0, 4000) || undefined;
+				details.stderr = (stderr.trim() || processError?.message)?.slice(0, 4000) || undefined;
 				const contract = childModelError
-					? { ok: false, status: "model-error", reason: "child model failed before producing a valid result; check provider authentication or quota" }
+					? { ok: false, status: "model-error", reason: "child model failed before producing a valid result; check provider authentication or quota", reasonCode: "child-model-error" }
 					: validateResult(output, params.evidence);
-				if (timedOut) details.status = "timed-out";
-				else if (signal.aborted) details.status = "aborted";
-				else if (exitCode !== 0) details.status = "failed";
-				else details.status = contract.status;
+				if (timedOut) {
+					details.status = "timed-out";
+					details.failureReason = "timeout";
+				} else if (signal.aborted) {
+					details.status = "aborted";
+					details.failureReason = "aborted";
+				} else if (processError) {
+					details.status = "failed";
+					details.failureReason = classifyRuntimeFailure(processError);
+				} else if (exitCode !== 0) {
+					details.status = "failed";
+					details.failureReason = "child-exit-nonzero";
+				} else {
+					details.status = contract.status;
+					details.failureReason = contract.reasonCode;
+				}
 				details.auditError = appendAudit(details, params.task);
 
 				const ok = exitCode === 0 && !timedOut && !signal.aborted && contract.ok;
-				const prefix = ok ? "" : `${contract.reason ?? details.status}\n\n`;
+				const diagnostic = details.failureReason === contract.reasonCode
+					? contract.reason
+					: details.stderr ?? contract.reason ?? details.status;
+				const prefix = ok ? "" : `[${details.failureReason ?? "unknown"}] ${diagnostic}\n\n`;
 				return {
 					content: [{ type: "text", text: `${prefix}${output || stderr || "(no child output)"}`.slice(0, OUTPUT_LIMIT) }],
 					details,
@@ -386,6 +404,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				if (details) {
 					details.status = "failed";
 					details.stderr = message;
+					details.failureReason = classifyRuntimeFailure(error);
 					details.auditError = appendAudit(details, params.task);
 				}
 				return { content: [{ type: "text", text: `Metonia delegation failed: ${message}` }], details, isError: true };
@@ -395,6 +414,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				runTracker.finish(runId, details?.status === "running" || !details?.status ? "failed" : details.status, {
 					agent: details?.agent,
 					model: details?.model,
+					failureReason: details?.failureReason,
 				});
 				renderRunTracker(ctx);
 			}

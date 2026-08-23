@@ -84,7 +84,10 @@ contract, execute writes sequentially in one cwd.
 
 After implementation evidence passes, use `fresh-review` with
 `skill: "review-plan"` for required independent review with the plan path,
-actual diff, commands/results, and residual risks. Keep the plan `in-progress` until required reviewer
+`reviewBase` set to the plan's approved base commit, commands/results,
+plan-specific controls, and residual risks. The broker supplies the current
+actual diff, changed-file list, clean state, and worktree list automatically;
+do not spend parent tokens restating those generated artifacts. Keep the plan `in-progress` until required reviewer
 blockers are resolved or explicitly deferred by the user. Execute directly in
 the parent only when `metonia_delegate` is unavailable or the user explicitly
 selects the parent session; record that exception in the plan.
@@ -149,7 +152,8 @@ selects the parent session; record that exception in the plan.
      those files; otherwise leave them for `/update-project`.
 9. Apply the plan's acceptance contract. For a required review, use
    `fresh-review` with `skill: "review-plan"`, the plan path, changed-file list,
-   verification commands and results. It must inspect the actual diff and
+   `reviewBase`, verification commands and results. It must inspect the broker's
+   automatic actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
    review blockers are resolved or explicitly deferred by the user, set plan
    `status: done`, refresh project `log.md` Current State (about 10 bullets

@@ -99,6 +99,11 @@ Use this call shape:
 }
 ```
 
-For review, explicitly inject `review-plan` and pass the plan path, actual
-diff, commands/results, and residual risks. For `deep-decision`, request a decision with alternatives, evidence,
+For review, explicitly inject `review-plan`, set `reviewBase` to the approved
+plan base commit, and pass the plan path, commands/results, execution controls,
+and residual risks. The broker then attaches a read-only snapshot containing
+the resolved base/HEAD, branch, clean state, changed-file list, actual diff,
+and worktree list. Do not duplicate that generated Git material in `task`, but
+do include verification output and plan-specific setup/gate evidence that Git
+cannot infer. For `deep-decision`, request a decision with alternatives, evidence,
 tradeoffs, and the condition requiring human approval; do not let it mutate.
