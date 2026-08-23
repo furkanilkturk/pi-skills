@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -10,7 +9,7 @@ import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
 import { RunTracker } from "./run-tracker.mjs";
 import { collectReviewContext } from "./review-context.mjs";
-import { buildAuditRecord, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
+import { buildAuditRecord, buildChildTransport, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
 import { acquireWriterLock } from "./writer-lock.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
@@ -284,15 +283,13 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const childTask = automaticReviewContext
 					? `${params.task}\n\n${automaticReviewContext}`
 					: params.task;
-				const args = [
-					"--mode", "json", "-p", "--no-session", "--no-extensions",
-					"--no-skills", "--skill", skill.path,
-					"--model", model,
-					"--tools", tools.join(","),
-					"--exclude-tools", "metonia_delegate,subagent",
-					"--append-system-prompt", promptPath,
-					childTask,
-				];
+				const transport = buildChildTransport({
+					skillPath: skill.path,
+					model,
+					tools,
+					promptPath,
+					task: childTask,
+				});
 
 				onUpdate?.({ content: [{ type: "text", text: `${route.profile}/${params.capability}: ${model}` }], details });
 				let output = "";
@@ -300,13 +297,15 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				let childModelError = false;
 				let timedOut = false;
 				let processError: Error | undefined;
-				const invocation = piInvocation(args);
+				const invocation = piInvocation(transport.args);
 				const proc = spawn(invocation.command, invocation.args, {
 					cwd,
 					shell: false,
-					stdio: ["ignore", "pipe", "pipe"],
+					stdio: ["pipe", "pipe", "pipe"],
 					env: { ...process.env, METONIA_DELEGATE_CHILD: "1" },
 				});
+				proc.stdin.on("error", () => { /* child exit can close stdin before the write completes */ });
+				proc.stdin.end(transport.stdin);
 				runTracker.start(runId, { agent: route.agent, model });
 				renderRunTracker(ctx);
 				let buffer = "";

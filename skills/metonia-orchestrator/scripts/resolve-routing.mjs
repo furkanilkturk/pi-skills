@@ -6,7 +6,6 @@ function fail(message) {
   process.stderr.write(`routing error: ${message}\n`);
   process.exit(1);
 }
-
 function option(args, name) {
   const index = args.indexOf(name);
   if (index === -1) return undefined;

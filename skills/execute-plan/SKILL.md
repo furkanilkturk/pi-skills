@@ -85,7 +85,9 @@ contract, execute writes sequentially in one cwd.
 After implementation evidence passes, use `fresh-review` with
 `skill: "review-plan"` for required independent review with the plan path,
 `reviewBase` set to the plan's approved base commit, commands/results,
-plan-specific controls, and residual risks. The broker supplies the current
+plan-specific controls, residual risks, and only the exact plan-log event links
+needed to prove the current execution. Never preload or paste the complete plan
+`log.md`. The broker supplies the current
 actual diff, changed-file list, clean state, and worktree list automatically;
 do not spend parent tokens restating those generated artifacts. Keep the plan `in-progress` until required reviewer
 blockers are resolved or explicitly deferred by the user. Execute directly in
@@ -95,19 +97,30 @@ selects the parent session; record that exception in the plan.
 ## Workflow
 
 1. Find the plan: the user gives a path, or list
-   `wiki/projects/<Company>/<Project>/plans/` and ask.
-2. Read the compact plan header fully once, project `rules.md`, and only
+   `wiki/projects/<Company>/<Project>/plans/*/index.md` and ask. A sibling
+   `plans/<slug>.md` is a legacy collision and must be migrated before running.
+2. Read the compact plan index fully once, project `rules.md`, and only
    **Planning and Execution** and **Efficiency** in
    `wiki/projects/Work Context System.md`. Do not read anything else yet. Treat
+   the prefix before `/wiki/projects/` in an absolute plan path as the vault
+   root and resolve this policy file directly. Example:
+   `C:/vault/wiki/projects/Acme/App/plans/x/index.md` maps to
+   `C:/vault/wiki/projects/Work Context System.md`; preserve the full prefix
+   through `/wiki/projects/` and never probe an ancestor or alternate path.
+   Treat
    a missing `execution_mode` as `strict` for legacy plans. If the plan declares
-   packets, load only the active packet; do not preload later packets or the
-   complete reconnaissance history.
+   packets, load only the active packet; do not preload later packets, the
+   complete reconnaissance history, or the plan `log.md`. The index's
+   `Current Execution` section must contain enough state to resume. Read one
+   exact linked log event only when that event is required to satisfy a resume,
+   approval, retry, or review gate.
    For schema v2 verify `plan_schema`, `base_commit`, `risk`,
    `executor_profile`, and `review_profile` before changing files and honor each
    step's retry, idempotence, external-effect, and human-gate controls. A
    mismatch follows the plan/repo mismatch flow below.
 3. Confirm the execution mode. `strict` is the default. `adaptive` is valid only
-   when explicit user selection/approval is recorded in the plan Execution Log;
+   when explicit user selection/approval is recorded in the plan `log.md` and
+   linked from `Current Execution`;
    otherwise block and request that approval before implementation writes.
 4. Set plan frontmatter `status: in-progress`.
 5. For each step with `status: todo`, in order:
@@ -116,13 +129,22 @@ selects the parent session; record that exception in the plan.
    - make exactly the change described, never making implementation writes
      outside `Files:`;
    - run the step's done-check;
-   - pass → `done`; fail → retry only when `retry: safe-once` and
-     `idempotent: true`; otherwise set the step `status: blocked`, paste the
-   error, set plan `status: blocked` with `blocked_reason:` and `resume_when:`,
-   then stop and report. A bounded-to-standard escalation consumes that one allowed
-   retry and must keep the same base commit, write set, and acceptance contract.
+   - pass → `done`; append the command/result evidence to plan `log.md`, then
+     update only the bounded `Current Execution` snapshot in `index.md`;
+     fail → allow no correction for `retry: never`, one same-scope
+     deterministic correction for `retry: safe-once` (two total attempts), or
+     two corrections for `retry: safe-twice` (three total attempts), only when
+     `idempotent: true` and `external_effects: none|local-build`; keep the same
+     worktree and canonical gates. If the scope, risk, dependency, write set,
+     external effects, or selected correction limit changes, stop for approval. Otherwise
+     set the step `status: blocked`, append the exact error/evidence to plan
+     `log.md`, set plan `status: blocked` with `blocked_reason:` and
+     `resume_when:`, link that event from `Current Execution`, then stop and
+     report.
    For an authorized parallel group, the parent applies this state machine to
-   every ready member while each child is limited to its assigned step; the
+   every meaningful ready member while each child is limited to its assigned
+   step; read-only roles use no worktrees, while each writer gets one isolated
+   worktree; the
    integration contract replaces only scheduling, never step checks or gates.
 6. On a plan/repo mismatch:
    - **Strict:** do not explore or write off-plan. Block the step and plan with
@@ -130,14 +152,16 @@ selects the parent session; record that exception in the plan.
    - **Adaptive:** stop implementation writes. If security, privacy, or data-loss
      uncertainty is involved, do not inspect adjacent files or speculate; use
      the existing mismatch evidence only. Otherwise inspect read-only at most
-     five directly related adjacent files or callers. Append
-     `## Proposed Amendment — YYYY-MM-DD` to the plan with the
+   five directly related adjacent files or callers. Append
+   `## Proposed Amendment — YYYY-MM-DD` to plan `log.md` with the
      affected step, evidence and inspected files, revised exact paths, revised
      checks, and ownership. Set the step/plan blocked with `blocked_reason:` and
      `resume_when:`, then wait for human approval. Only these plan control-record
      writes are allowed before approval.
-   - After explicit approval, amend the plan, record approval in its Execution
-     Log, restore the step to `todo` and plan to `in-progress`, then resume.
+   - After explicit approval, amend the current controls in `index.md`/the
+     active packet, record approval in plan `log.md`, link that event from
+     `Current Execution`, restore the step to `todo` and plan to `in-progress`,
+     then resume.
 7. Never skip or reorder steps. Adaptive changes the amendment procedure, not
    the permission to make off-plan writes.
 8. When all steps are done:
@@ -145,14 +169,16 @@ selects the parent session; record that exception in the plan.
      verification (lint/check/test);
    - apply the completed-work metric and stop rules from canonical **Planning
      and Execution**;
-   - fill the plan's Success Criteria checkboxes;
+   - fill the plan's Success Criteria checkboxes and update its bounded
+     `Current Execution` snapshot;
    - keep plan `status: in-progress` while required independent review is
      pending; a passing implementation check is necessary but not completion;
    - update concepts or project index metadata only when the approved plan names
      those files; otherwise leave them for `/update-project`.
 9. Apply the plan's acceptance contract. For a required review, use
    `fresh-review` with `skill: "review-plan"`, the plan path, changed-file list,
-   `reviewBase`, verification commands and results. It must inspect the broker's
+   `reviewBase`, verification commands/results, and exact current plan-log event
+   links only. It must inspect the broker's
    automatic actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
    review blockers are resolved or explicitly deferred by the user, set plan
@@ -167,7 +193,9 @@ selects the parent session; record that exception in the plan.
 
 ## Token Discipline
 
-The plan replaces exploration. If you feel the urge to browse the repo "to
+The plan replaces exploration. Do not load the plan's full `log.md` to recover
+context; `Current Execution`, the active packet, and at most one exact linked
+event are the resume packet. If you feel the urge to browse the repo "to
 understand", the plan is under-specified: strict mode blocks immediately;
 adaptive mode may use only the bounded read-only amendment procedure above.
 

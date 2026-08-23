@@ -36,6 +36,13 @@ chain. They launch one fresh vault writer with the selected learning skill
 explicitly injected. Short clean sources use `bounded-learning`; dense,
 uncertain, or highly technical sources use `deep-learning`.
 
+Plan packages keep coding context bounded: `plans/<slug>/index.md` contains
+only current controls and the resume snapshot, while `plans/<slug>/log.md`
+stores append-only execution history. Executors load the index plus the active
+packet; they read at most one exact linked log event when a gate requires it.
+Reviewers receive the same bounded record instead of the complete historical
+log.
+
 ## First-party delegation runtime
 
 `extensions/metonia-delegate` registers one synchronous Pi tool:
@@ -95,9 +102,12 @@ learning synthesis, `worker` for implementation, `reviewer` for independent
 verification, and `oracle` for high-impact decisions. Pi executes multiple tool
 calls from one model turn in parallel by default. The planner derives each wave
 from the useful non-conflicting ready frontier rather than a fixed child count.
-The cwd writer lock prevents competing writers; parallel write work requires
-separate worktrees, non-overlapping files, explicit integration ownership and
-order, and a combined verification before fresh review.
+The cwd writer lock prevents competing writers. Worktree count follows the
+dynamic ready dependency frontier rather than a fixed number. Keep small work
+sequential; use separate worktrees only for approved independent writers with
+non-overlapping files, integration ownership, order, and combined verification.
+Read-only roles never need a worktree, retry/correction remains in the same
+writer worktree, and fresh review sees only the final integrated diff.
 
 Durable plans and work skills mention capability and role only; provider/model
 candidate policy is runtime-local configuration. `config/routing.example.json` ships
@@ -110,8 +120,11 @@ without changing vault plans or skill semantics.
 `bounded-write` may run only when scope and checks are exact, the total write
 set is at most three files, risk is low, effects are local, no human gate or
 sensitive domain is involved, and the base commit matches. Ambiguity, a failed
-safety check, or scope growth stops the run. A bounded-to-standard retry is
-allowed only when the plan declares `retry: safe-once` and `idempotent: true`.
+safety check, or scope growth stops the run. Same-scope deterministic repairs
+follow the plan's retry policy: `safe-once` permits one correction and
+`safe-twice` two; both require idempotence, no external effect, the same writer
+worktree, and the same canonical gates. Expansion or an exhausted limit waits
+for approval.
 
 ## Install or synchronize
 

@@ -20,12 +20,14 @@ prove those execution facts.
 
 Require all of the following before passing:
 
-- the approved plan path and its base commit, step/packet boundaries, success
-  criteria, and required review profile;
+- the approved plan index path and its base commit, step/packet boundaries,
+  success criteria, current-execution snapshot, and required review profile;
 - the actual changed-file list and read-only diff against that base;
 - every verification command, its result, and any residual risk or deviation;
 - execution evidence for completed steps, retries, idempotence, external
-  effects, and human gates when the plan declares those controls.
+  effects, and human gates when the plan declares those controls. Accept exact
+  named headings/links from the plan `log.md`; do not read the full historical
+  log by default.
 
 If an input is missing, the base/diff cannot be inspected, a change is outside
 the approved boundary, a required check failed or was not run, or a required
@@ -33,7 +35,8 @@ control/gate is unresolved, return `BLOCKED`. Do not repair the issue.
 
 ## Review procedure
 
-1. Read the plan controls and compare its allowed files, active packets, step
+1. Read the plan index and active controls, then only the exact plan-log events
+   named by the handoff. Compare allowed files, active packets, step
    ordering, retry/idempotence rules, external-effect rules, and human gates
    to the actual diff and evidence.
 2. Inspect the actual diff read-only. Check that every changed file and material

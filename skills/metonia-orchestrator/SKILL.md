@@ -66,23 +66,31 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
   acceptance criteria, and evidence requirements.
 - Supply `controls` for `bounded-write` or `bounded-learning`; the runtime
   rejects an ineligible fast-lane call instead of trusting the model's label.
-- Allow only one writer in a cwd/worktree at a time.
-- Before delegating, identify the ready frontier: useful tasks whose
+- Allow only one writer in a cwd/worktree at a time. Read-only roles never need
+  a worktree; a retry/correction stays in the same writer worktree.
+- Same-scope deterministic repairs follow the plan's retry policy: `safe-once`
+  allows one correction, `safe-twice` allows two, and `never` allows none.
+  Repairs require idempotence, no external effect, the same writer worktree,
+  and the same canonical gates. Scope/risk/dependency/write-set/effect
+  expansion or limit exhaustion stops for approval.
+- Before delegating, identify the dynamic ready dependency frontier: useful tasks whose
   dependencies are satisfied and whose reads or write sets do not conflict.
   Derive the wave size from that frontier; there is no fixed agent count. Emit
   independent read-only scout/research/review calls in the same turn; Pi runs
   the tool calls in parallel by default. Do not create duplicate or speculative
   tasks merely to increase concurrency. Split a wave when its cost/rate budget
   or one very slow task would dominate the batch.
-- Do not parallelize writers against the same cwd. Separate worktrees may run
-  independently only when the approved plan gives each writer a non-overlapping
+- Keep small work sequential. Do not parallelize writers against the same cwd.
+  Separate worktrees may run independently only when the approved plan gives each writer a non-overlapping
   write set and names the merge boundary, integration owner, integration order,
   and combined verification. The parent or a named writer integrates; the
   read-only reviewer never merges or resolves conflicts.
 - Use `efficient-read`, `fresh-review`, and `deep-decision` as read-only roles.
 - Review is a workflow decision, not automatic: Quick and ordinary learning
   ingests may stop after deterministic evidence; Standard/Critical coding uses
-  `fresh-review` with `skill: "review-plan"` when its plan requires it.
+  `fresh-review` with `skill: "review-plan"` when its plan requires it. Review
+  only the final integrated diff; do not review isolated writer diffs as a
+  substitute for integration review.
 - If `metonia_delegate` is unavailable, run in the current session and report
   the routing exception.
 

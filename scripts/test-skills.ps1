@@ -43,11 +43,16 @@ $trackedText = git -C $repoRoot grep -I -n -E '[A-Za-z]:\\Users\\' -- . 2>$null
 if ($LASTEXITCODE -eq 0 -and $trackedText) { $failures.Add('tracked files contain a machine-specific Windows user path') }
 
 $contracts = @{
+    'create-plan' = Get-Content -LiteralPath (Join-Path $skillsRoot 'create-plan/SKILL.md') -Raw
     'execute-plan' = Get-Content -LiteralPath (Join-Path $skillsRoot 'execute-plan/SKILL.md') -Raw
     'doc-learning' = Get-Content -LiteralPath (Join-Path $skillsRoot 'doc-learning/SKILL.md') -Raw
     'video-learning' = Get-Content -LiteralPath (Join-Path $skillsRoot 'video-learning/SKILL.md') -Raw
     'metonia-orchestrator' = Get-Content -LiteralPath (Join-Path $skillsRoot 'metonia-orchestrator/SKILL.md') -Raw
     'review-plan' = Get-Content -LiteralPath (Join-Path $skillsRoot 'review-plan/SKILL.md') -Raw
+}
+$readme = Get-Content -LiteralPath (Join-Path $repoRoot 'README.md') -Raw
+foreach ($contract in @('safe-once` permits one correction', 'safe-twice` two', 'same canonical gates')) {
+    if ($readme -notmatch [Regex]::Escape($contract)) { $failures.Add("README lacks retry parity: $contract") }
 }
 
 foreach ($name in @('execute-plan', 'doc-learning', 'video-learning')) {
@@ -73,10 +78,32 @@ if ($contracts['metonia-orchestrator'] -notmatch 'parent session') { $failures.A
 foreach ($role in @('scout', 'researcher', 'worker', 'reviewer', 'oracle')) {
     if ($contracts['metonia-orchestrator'] -notmatch "``$role``") { $failures.Add("metonia-orchestrator lacks role $role") }
 }
-foreach ($parallelContract in @('ready frontier', 'no fixed agent count', 'in parallel by default')) {
+foreach ($parallelContract in @('dynamic ready dependency frontier', 'no fixed agent count', 'in parallel by default')) {
     if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape($parallelContract)) {
         $failures.Add("metonia-orchestrator lacks adaptive parallel guidance: $parallelContract")
     }
+}
+foreach ($contract in @('plans/<slug>/index.md', 'sibling `plans/<slug>.md`', 'safe-twice', 'deterministic', 'three total attempts', 'canonical gates', 'final integrated diff')) {
+    $found = $false
+    foreach ($skillName in @('create-plan', 'execute-plan', 'metonia-orchestrator')) {
+        if ($contracts[$skillName] -match [Regex]::Escape($contract)) { $found = $true; break }
+    }
+    if (-not $found) { $failures.Add("plan execution policy lacks: $contract") }
+}
+foreach ($contract in @('dynamic ready dependency frontier', 'Read-only roles need no worktree', 'Corrections stay in the same worktree', 'same worktree')) {
+    if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks worktree policy: $contract") }
+}
+foreach ($contract in @('safe-once', 'safe-twice', 'three total attempts', 'external_effects: none|local-build', 'canonical gates')) {
+    if ($contracts['execute-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("execute-plan lacks repair/review policy: $contract") }
+}
+foreach ($contract in @('index.md` plus `log.md', 'Current Execution', 'Do not copy historical log entries')) {
+    if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks compact plan-log policy: $contract") }
+}
+foreach ($contract in @('Never preload or paste the complete plan', 'at most one exact linked', 'plan `log.md`')) {
+    if ($contracts['execute-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("execute-plan lacks bounded plan-log context: $contract") }
+}
+foreach ($contract in @('do not read the full historical', 'exact plan-log events')) {
+    if ($contracts['review-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("review-plan lacks bounded plan-log context: $contract") }
 }
 if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('metonia-orchestrator does not explicitly inject review-plan') }
 if ($contracts['execute-plan'] -notmatch [Regex]::Escape('skill: "review-plan"')) { $failures.Add('execute-plan does not explicitly inject review-plan') }
@@ -89,11 +116,17 @@ foreach ($runtimeFile in @($runtimePath, $routingPath, $runtimeContractPath, $re
 }
 if (Test-Path -LiteralPath $runtimePath) {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw
-    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', '--no-session', '--no-extensions', '--no-skills', '--exclude-tools', 'buildAuditRecord', 'skillCollision', 'collectReviewContext', 'reviewBase')) {
+    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', 'buildAuditRecord', 'buildChildTransport', 'proc.stdin.end(transport.stdin)', 'skillCollision', 'collectReviewContext', 'reviewBase')) {
         if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks safety contract: $contract") }
     }
     if ($runtime.IndexOf('source: "bundled"') -gt $runtime.IndexOf('source: "global"')) { $failures.Add('runtime resolves global skills before bundled skills') }
     if ($runtime -match 'from\s+["'']pi-subagents') { $failures.Add('runtime imports pi-subagents') }
+}
+if (Test-Path -LiteralPath $runtimeContractPath) {
+    $runtimeContract = Get-Content -LiteralPath $runtimeContractPath -Raw
+    foreach ($contract in @('--no-session', '--no-extensions', '--no-skills', '--exclude-tools', 'stdin: task')) {
+        if ($runtimeContract -notmatch [Regex]::Escape($contract)) { $failures.Add("child transport lacks isolation contract: $contract") }
+    }
 }
 
 & node $routingTestPath

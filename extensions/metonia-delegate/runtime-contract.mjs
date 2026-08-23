@@ -105,6 +105,22 @@ export function safeFailureReason(value) {
   return SAFE_FAILURE_REASONS.has(value) ? value : undefined;
 }
 
+// Pi print mode merges piped stdin into the initial prompt. Keep task/context
+// out of argv so Windows command-line limits cannot reject large review diffs.
+export function buildChildTransport({ skillPath, model, tools, promptPath, task }) {
+  return {
+    args: [
+      "--mode", "json", "-p", "--no-session", "--no-extensions",
+      "--no-skills", "--skill", skillPath,
+      "--model", model,
+      "--tools", tools.join(","),
+      "--exclude-tools", "metonia_delegate,subagent",
+      "--append-system-prompt", promptPath,
+    ],
+    stdin: task,
+  };
+}
+
 // Deliberately enumerate fields: a RunDetails addition cannot accidentally leak
 // task content, absolute paths, child stderr, or broker diagnostics into the audit.
 export function buildAuditRecord(details, task) {

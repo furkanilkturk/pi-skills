@@ -53,12 +53,13 @@ eligibility; stop and return evidence instead of exploring.
 3. Follow **Planning and Execution** in `wiki/projects/Work Context System.md`.
    Ask only decision-changing questions about goal, scope, constraints, done
    definition, or adaptive execution. Strict is the default.
-4. Write `wiki/projects/<Company>/<Project>/plans/<slug>.md` from
+4. Create the directory `wiki/projects/<Company>/<Project>/plans/<slug>/` and
+   write its `index.md` plus `log.md` from
    `wiki/projects/_templates/Plan Template.md`. Set `plan_schema: 2`, a
    non-empty `base_commit` (or `no-repo`), `risk`, provider-neutral
    `executor_profile` and `review_profile`, and `execution_mode: strict`.
    Use `adaptive` only after explicit user selection or approval and record that
-   approval in the Execution Log. The Pi host maps an eligible executor through
+   approval in the plan `log.md`. The Pi host maps an eligible executor through
    its local routing profile; keep model or provider names out of the plan.
 5. Set plan frontmatter `status: ready` when the user approves it.
 
@@ -74,11 +75,16 @@ it:
   visible output). No "works correctly".
 - **No cross-step memory** — if step 3 needs something from step 1, restate it
   or point at the produced file.
-- **Failure path** — classify every retry as `safe-once` or `never` and state
-  idempotence. Retry only when `retry: safe-once` and `idempotent: true`; the
-  single retry may escalate `bounded-write` to `standard-write`. Use `never`
+- **Failure path** — classify every retry as `safe-once`, `safe-twice`, or
+  `never` and state idempotence. `safe-once` permits one same-scope deterministic
+  correction (two total attempts); `safe-twice` permits two corrections (three
+  total attempts). Corrections stay in the same worktree, require
+  `idempotent: true`, and have no external effect. Use `never`
   for deploys, submissions, billing, destructive data operations, and other
-  external effects. Otherwise mark blocked and stop; never improvise scope.
+  external effects. No human approval is needed for those same-scope repairs;
+  scope/risk/dependency/write-set/external-effect expansion or exhausting the
+  selected correction limit requires approval. Otherwise mark blocked and stop;
+  never improvise scope.
 - **Acceptance contract** — name the required commands, expected result, and
   whether a fresh `reviewer` must inspect the final diff. Completion means the
   checks pass and required review findings are resolved or explicitly deferred
@@ -86,15 +92,24 @@ it:
 - **Execution boundary** — strict plans block on any mismatch without off-plan
   exploration or writes. Adaptive plans still forbid off-plan implementation
   writes and use only the controlled amendment flow in the template.
-- **Step packets** — when the plan would exceed about 150 lines, keep a compact
-  dependency header, put shared evidence in one `plans/<slug>/recon.md`, and put
-  executable work in `plans/<slug>/steps/<nn>-<slug>.md`. Repeat exact reads,
+- **Plan directory** — every plan is `plans/<slug>/index.md`; never create a
+  sibling `plans/<slug>.md`. Keep current controls and the active-step summary
+  in `index.md`; append execution evidence, approvals, deviations, and review
+  results to `plans/<slug>/log.md`. Put shared reconnaissance in `recon.md` and
+  executable work in `steps/<nn>-<slug>.md`. Do not copy historical log entries
+  back into the index or packets.
+- **Step packets** — create only the packets the dependency frontier requires.
+  Keep the index compact: its `Current Execution` section names the active
+  step, next action, last verified HEAD, and one exact `log.md` event link.
+  Load only the active packet. Repeat exact reads,
   files, checks, retry, idempotence, external effects, and human gates in every
   packet; do not duplicate the reconnaissance narrative.
-- **Optional parallel groups** — sequential is the default. When independent
-  write steps will materially shorten execution, add a `Parallel Execution
-  Contract` that groups exact step numbers, names their completed dependencies,
-  requires one isolated worktree and non-overlapping `Files:` per step, and
+- **Optional parallel groups** — sequential is the default. Derive a group from
+  the dynamic ready dependency frontier only when meaningful independent writer
+  work will materially shorten execution. Read-only roles need no worktree.
+  Add a `Parallel Execution Contract` that groups exact step numbers, names
+  their completed dependencies, requires one isolated worktree per writer and
+  non-overlapping `Files:` per step, and
   records the integration owner, target, order, conflict policy (`block`), and
   combined check. Do not create a group for trivial work or merely to use more
   agents.
@@ -112,11 +127,12 @@ it:
   task contract, exact write set, stop conditions, and checks.
 - Route every other Standard or Critical implementation to the default
   `standard-write`. One child owns a write set or worktree at a time.
-- Derive parallelism from the ready dependency frontier, not a fixed child
-  count. Parallel writers require isolated worktrees, non-overlapping `Files:`,
+- Derive parallelism from the dynamic ready dependency frontier, not a fixed
+  child count. Parallel writers require isolated worktrees, non-overlapping `Files:`,
   and a plan-owned integration contract naming the target, owner, order,
   conflict policy, and combined check. Otherwise keep writes sequential.
-- Quick needs no independent review unless stricter project rules require it.
+- Quick needs no independent review unless stricter project rules require it;
+  fresh review, when required, inspects only the final integrated diff.
   Standard and Critical require `fresh-review` that inspects
   the actual diff, controls, and validation evidence without editing.
 - Escalate an unresolved critical decision with `deep-decision` rather than

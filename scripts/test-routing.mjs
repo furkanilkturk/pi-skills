@@ -12,6 +12,7 @@ import {
 import {
   auditErrorClass,
   buildAuditRecord,
+  buildChildTransport,
   classifyRuntimeFailure,
   normalizeEvidenceLabel,
   safeFailureReason,
@@ -27,6 +28,7 @@ import { acquireWriterLock } from "../extensions/metonia-delegate/writer-lock.mj
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(repoRoot, "config", "routing.example.json");
 const runtimeSource = fs.readFileSync(path.join(repoRoot, "extensions", "metonia-delegate", "index.ts"), "utf8");
+const runtimeContractSource = fs.readFileSync(path.join(repoRoot, "extensions", "metonia-delegate", "runtime-contract.mjs"), "utf8");
 const profiles = ["portable", "codex", "opencode-go", "claude", "mixed"];
 const expectedAgents = {
   "efficient-read": "scout",
@@ -62,7 +64,7 @@ assert.equal(selectedGlobal.source, "global");
 assert.equal(selectedGlobal.collision, "none");
 
 const privateCwd = "/private/example-user/project";
-const audit = buildAuditRecord({
+const auditDetails = {
   runId: "run-1",
   profile: "auto",
   capability: "fresh-review",
@@ -83,7 +85,8 @@ const audit = buildAuditRecord({
   failureReason: "contract-missing-evidence",
   stderr: "private stderr",
   brokerError: "private broker diagnostic",
-}, "private task content");
+};
+const audit = buildAuditRecord(auditDetails, "private task content");
 assert.equal(audit.schema_version, 2);
 assert.equal(audit.cwd_sha256, workspaceHash(privateCwd));
 assert.equal(audit.task_sha256, sha256("private task content"));
@@ -97,12 +100,32 @@ for (const prohibited of ["cwd", "stderr", "brokerError", "auditError"]) {
 assert.equal(JSON.stringify(audit).includes("private-user"), false);
 assert.equal(JSON.stringify(audit).includes("private stderr"), false);
 assert.equal(JSON.stringify(audit).includes("private broker diagnostic"), false);
-assert.ok(runtimeSource.includes('"--no-extensions"'), "child must disable extension discovery");
 assert.ok(runtimeSource.includes("collectReviewContext"), "fresh review must support automatic Git context");
 assert.ok(
   runtimeSource.indexOf('source: "bundled"') < runtimeSource.indexOf('source: "global"'),
   "bundled skill candidates must precede global candidates",
 );
+
+const largeAutomaticReviewContext = `AUTOMATIC_REVIEW_CONTEXT\n${"diff-line\n".repeat(5_000)}`;
+assert.ok(Buffer.byteLength(largeAutomaticReviewContext) > 40_000, "review regression fixture must exceed Windows argv risk threshold");
+const childTransport = buildChildTransport({
+  skillPath: "/private/bundled/review-plan/SKILL.md",
+  model: "provider/model:medium",
+  tools: ["read", "grep", "find", "ls"],
+  promptPath: "/private/contract.md",
+  task: `Review the plan.\n\n${largeAutomaticReviewContext}`,
+});
+assert.equal(childTransport.stdin.endsWith(largeAutomaticReviewContext), true);
+assert.equal(childTransport.args.some((arg) => arg.includes("AUTOMATIC_REVIEW_CONTEXT")), false, "large review context must not enter argv");
+for (const requiredArg of ["-p", "--no-session", "--no-extensions", "--no-skills", "--skill", "--append-system-prompt"]) {
+  assert.ok(childTransport.args.includes(requiredArg), `child transport lost isolation/contract arg ${requiredArg}`);
+}
+assert.ok(runtimeContractSource.includes('"--no-extensions"'), "child transport must disable extension discovery");
+assert.ok(runtimeSource.includes("proc.stdin.end(transport.stdin)"), "runtime must pipe the task into child stdin");
+assert.ok(runtimeSource.includes("appendAudit(details, params.task)"), "audit must retain the caller task contract rather than review context");
+const largeReviewAudit = buildAuditRecord({ ...auditDetails, runId: "run-large-review" }, "Review the plan");
+assert.equal(largeReviewAudit.task_sha256, sha256("Review the plan"));
+assert.equal(JSON.stringify(largeReviewAudit).includes("AUTOMATIC_REVIEW_CONTEXT"), false, "audit must not retain automatic review context");
 
 assert.equal(normalizeEvidenceLabel("Commands_Run"), "commands-run");
 assert.deepEqual(
