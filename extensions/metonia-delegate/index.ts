@@ -4,10 +4,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getAgentDir, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
+import { RunTracker } from "./run-tracker.mjs";
 import { buildAuditRecord, selectSkillCandidate, sha256, workspaceHash } from "./runtime-contract.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
@@ -15,6 +16,8 @@ const OUTPUT_LIMIT = 60 * 1024;
 const MODEL_CACHE_MS = 60_000;
 
 let modelCache: { expiresAt: number; ids: Set<string> } | undefined;
+const runTracker = new RunTracker();
+let widgetClearTimer: ReturnType<typeof setTimeout> | undefined;
 
 const bundledSkillsDir = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -54,6 +57,48 @@ type RunDetails = {
 	stderr?: string;
 	auditError?: string;
 };
+
+function shortModel(model?: string): string {
+	if (!model) return "selecting model";
+	return model;
+}
+
+function renderRunTracker(ctx: ExtensionContext): void {
+	if (widgetClearTimer) {
+		clearTimeout(widgetClearTimer);
+		widgetClearTimer = undefined;
+	}
+	const snapshot = runTracker.snapshot();
+	const counts = [
+		`${snapshot.running} running`,
+		`${snapshot.queued} queued`,
+		`${snapshot.completed} done`,
+	];
+	if (snapshot.issues > 0) counts.push(`${snapshot.issues} issues`);
+	const summary = `Metonia agents: ${counts.join(" · ")}`;
+	ctx.ui.setStatus("metonia-agents", ctx.ui.theme.fg(snapshot.issues > 0 ? "warning" : "accent", summary));
+
+	const lines = [ctx.ui.theme.bold(summary)];
+	for (const run of snapshot.active) {
+		const queued = run.phase === "queued";
+		const marker = queued ? ctx.ui.theme.fg("muted", "○ queued") : ctx.ui.theme.fg("accent", "● running");
+		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}`);
+	}
+	for (const run of snapshot.recent.slice(0, snapshot.active.length > 0 ? 2 : 4)) {
+		const passed = run.status === "passed";
+		const marker = passed ? ctx.ui.theme.fg("success", "✓ done") : ctx.ui.theme.fg("warning", `! ${run.status}`);
+		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}`);
+	}
+	ctx.ui.setWidget("metonia-agents", lines, { placement: "aboveEditor" });
+
+	if (snapshot.active.length === 0) {
+		widgetClearTimer = setTimeout(() => {
+			if (runTracker.snapshot().active.length === 0) ctx.ui.setWidget("metonia-agents", undefined);
+			widgetClearTimer = undefined;
+		}, 8000);
+		widgetClearTimer.unref?.();
+	}
+}
 
 async function availableModelIds(signal: AbortSignal): Promise<Set<string>> {
 	if (modelCache && modelCache.expiresAt > Date.now()) return modelCache.ids;
@@ -220,6 +265,8 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 		parameters: Parameters,
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const runId = randomUUID();
+			runTracker.queue(runId, params.capability);
+			renderRunTracker(ctx);
 			let releaseLock: (() => void) | undefined;
 			let promptDir: string | undefined;
 			let details: RunDetails | undefined;
@@ -305,6 +352,8 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					stdio: ["ignore", "pipe", "pipe"],
 					env: { ...process.env, METONIA_DELEGATE_CHILD: "1" },
 				});
+				runTracker.start(runId, { agent: route.agent, model });
+				renderRunTracker(ctx);
 				let buffer = "";
 
 				const consume = (line: string) => {
@@ -388,6 +437,11 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 			} finally {
 				releaseLock?.();
 				if (promptDir) fs.rmSync(promptDir, { recursive: true, force: true });
+				runTracker.finish(runId, details?.status === "running" || !details?.status ? "failed" : details.status, {
+					agent: details?.agent,
+					model: details?.model,
+				});
+				renderRunTracker(ctx);
 			}
 		},
 	});

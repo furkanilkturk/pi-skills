@@ -45,6 +45,8 @@ uncertain, or highly technical sources use `deep-learning`.
 - one explicitly injected skill;
 - provider-neutral capability routing over Pi's authenticated model catalog;
 - truly read-only toolsets for reconnaissance/review/decision roles;
+- a lightweight live widget for queued/running roles, selected models, and
+  session completion/issue counts;
 - a cross-process writer lock per cwd;
 - required acceptance/evidence output; and
 - a minimal local audit line in
@@ -56,6 +58,8 @@ uncertain, or highly technical sources use `deep-learning`.
 It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
 background jobs, inter-agent chat, and automatic worktree management.
+The widget observes Pi's native parallel tool execution; it does not add a
+scheduler and does not retain task text or working-directory paths in UI state.
 
 The default `auto` broker asks Pi which models are available through the
 current logins and selects the first capability-ranked candidate. It therefore

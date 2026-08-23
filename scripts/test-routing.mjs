@@ -15,6 +15,7 @@ import {
   sha256,
   workspaceHash,
 } from "../extensions/metonia-delegate/runtime-contract.mjs";
+import { RunTracker } from "../extensions/metonia-delegate/run-tracker.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(repoRoot, "config", "routing.example.json");
@@ -91,6 +92,22 @@ assert.ok(
   runtimeSource.indexOf('source: "bundled"') < runtimeSource.indexOf('source: "global"'),
   "bundled skill candidates must precede global candidates",
 );
+
+const tracker = new RunTracker(2);
+tracker.queue("queued", "efficient-read", 1);
+tracker.queue("running", "fresh-review", 2);
+tracker.start("running", { agent: "reviewer", model: "provider/model:medium" });
+let trackerState = tracker.snapshot();
+assert.equal(trackerState.queued, 1);
+assert.equal(trackerState.running, 1);
+assert.equal(trackerState.completed, 0);
+tracker.finish("running", "passed", {}, 3);
+tracker.finish("queued", "model-error", { agent: "scout" }, 4);
+trackerState = tracker.snapshot();
+assert.equal(trackerState.active.length, 0);
+assert.equal(trackerState.completed, 2);
+assert.equal(trackerState.issues, 1);
+assert.equal(trackerState.recent[0].status, "model-error");
 
 for (const profile of profiles) {
   for (const capability of CAPABILITIES) {
