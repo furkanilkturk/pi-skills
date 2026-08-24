@@ -1,111 +1,58 @@
 ---
 name: doc-learning
-description: Ingest documents, articles, official docs, PDFs, or lessons into the Metonia vault as teach-from-zero lessons. Use when the user says /doc-learning, ingest this doc/PDF/article/lesson, add reading material, or wants a document turned into vault memory.
+description: Turn documents, articles, official docs, PDFs, slides, or lesson text into source-backed Obsidian learning notes. Use when the user asks to ingest reading material, create a lesson from a document, or connect a text source to existing knowledge.
 ---
 
 # Doc Learning
 
-Vault path: discover the Metonia vault by reading the `METONIA_VAULT`
-environment variable, or by asking the user for the path. There is no
-machine-specific fallback.
+Use this skill for learning and knowledge maintenance, including technical
+subjects. It is self-contained and runs in the current session.
 
-## Goal
+## Locate the vault
 
-Turn any text source (docs, articles, PDFs, lecture notes, slides) into learnable
-wiki memory — the same pipeline as the vault's video-learning skill, but for text.
+Read `METONIA_VAULT`. If it is unset, ask for the vault path. Never assume a
+machine-specific location.
 
-## Workflow Class and Ownership
+Expected paths:
 
-This is an Obsidian/vault learning workflow, not a coding workflow. Do not
-create a work-project plan or invoke the coding planner → executor → reviewer
-chain merely because the source contains code.
+- `raw/inbox/`: new captures
+- `raw/sources/<course>/`: preserved source material
+- `raw/assets/`: PDFs and attachments
+- `wiki/courses/<course>/`: lessons
+- `wiki/concepts/`: reusable concepts
+- `wiki/Index.md`: thin navigation map
+- `wiki/Log.md`: meaningful learning activity
 
-Use one vault writer. Route a short, clean, single-source ingest as
-`bounded-learning`; route a dense, long, multi-source, highly technical, or
-uncertain lesson as `deep-learning`. Use `efficient-read` only for bounded
-metadata or source lookup. Independent
-review is optional unless the user requests publication-grade accuracy; source
-links, confidence labels, and spot checks are the default evidence.
+## Workflow
 
-### Pi orchestration
+1. Inspect the source, its author/date when known, and its reliability.
+2. Preserve the original evidence. Move an inbox item only when the user has
+   approved the ingest; otherwise copy it or leave it in place.
+3. Create or update one lesson using
+   `wiki/courses/_templates/Lesson Template.md`.
+4. Distill reusable ideas into existing concept pages. Create a concept only
+   when it is likely to be useful again; append source-specific evidence
+   without overwriting prior material.
+5. Add reciprocal `[[wikilinks]]` between the lesson, concepts, and related
+   lessons.
+6. Update `wiki/Index.md` only when a course route is created, renamed, or
+   moved. Append `wiki/Log.md` for meaningful ingestion, not tiny formatting
+   changes.
+7. Report changed files, the source path or URL, confidence, and a few factual
+   spot checks.
 
-In a parent session, load `metonia-orchestrator`, classify the source before
-vault writes, and call `metonia_delegate` exactly once. Explicitly inject
-`doc-learning`. Uncertain classification uses `deep-learning`. When this skill
-is injected into the child, ingest directly and do not delegate again.
+Use adaptive depth: a short source may need a five-bullet lesson; a foundational
+or dense source may need the full template. Do not expand material merely to
+fill sections.
 
-```js
-{
-  capability: "bounded-learning",
-  task: "Ingest <SOURCE>. Preserve raw evidence, write one lesson, update living concepts and required navigation/log files, then report changed files and spot checks.",
-  skill: "doc-learning",
-  cwd: "<VAULT_PATH>",
-  criteria: ["Raw evidence is preserved and the lesson is linked to its concepts"],
-  evidence: ["changed-files", "source-link-or-path", "spot-checks", "confidence"],
-  controls: { sourceCount: 1, sourceConfidence: "high", dense: false, highlyTechnical: false }
-}
-```
+## Source handling
 
-For `deep-learning`, omit `controls`; the bounded controls exist to reject an
-optimistic classification, not to limit the normal ingest workflow.
-
-If `metonia_delegate` is unavailable, run in the current session and report
-the routing exception. A bounded lookup may use `efficient-read` before
-the writer, but it must not mutate the vault or become a coding review chain.
-
-The `pi-skills` repository is the canonical Pi-specific source and
-`~/.pi/agent/skills` is its installed mirror. Metonia may also ship a
-provider-neutral distribution copy for other agents. When Pi discovers both,
-use this user-global Pi version and do not edit the distribution copy during an
-ingest.
-
-## Vault Paths
-
-- New captures: `raw/inbox/` (moved to `raw/sources/<course>/` on ingest)
-- Raw source: `raw/sources/<course>/NN-slug.md` or `.txt`
-- Course note: `wiki/courses/<course>/` (from `wiki/courses/_templates/Lesson Template.md`)
-- Durable concepts: `wiki/concepts/` (living pages, append per project/source)
-- Navigation: update `wiki/Index.md` for a new, renamed, or moved course route,
-  not an ordinary lesson update
-- Activity: append `wiki/Log.md` for meaningful ingest; skip no-op/tiny typo,
-  formatting, or link-only maintenance
-
-Course naming example: `system-design`, `databases`. One folder per course;
-`NN-` prefix orders the reading sequence.
-
-## Per-Document Workflow
-
-1. Capture the source:
-   - Copy/paste text → save as `raw/sources/<course>/NN-slug.md` with a short
-     frontmatter block (title, author, url/date, reliability).
-   - PDFs → move into `raw/assets/` if large, keep an `.md` stub with a path +
-     summary pointer in `raw/sources/<course>/`.
-   - Never rewrite the original text; it is evidence.
-2. Create one course note per document in `wiki/courses/<course>/` from
-   `wiki/courses/_templates/Lesson Template.md` (adaptive depth: short sources
-   get a 5-bullet summary, core sources get the full lesson).
-3. Add or update living concept pages in `wiki/concepts/`:
-   - missing → create (what it is + minimal example);
-   - exists → append a `### <Source/Course> — how/what it says` subsection,
-     never overwrite other sections.
-4. Backlink course note ↔ concepts ↔ related lessons.
-5. If this creates, renames, or moves a course route, update `wiki/Index.md`;
-   ordinary lesson updates must not churn it. Append to `wiki/Log.md` for
-   meaningful ingest; skip no-op/tiny typo, formatting, or link-only
-   maintenance.
-
-## Lesson Structure
-
-Use the shared template at `wiki/courses/_templates/Lesson Template.md` (single
-source of truth, also used by `/video-learning`). Adaptive depth: short
-sources get a 5-bullet summary; core sources get the full 10-section lesson.
-
-## Boundaries
-
-- Do not paste entire documents into wiki pages — distill; raw keeps the full
-  text.
-- Do not store paywalled or distributed PDFs in git if the user marks them
-  private; ask when unsure.
-- Mark auto-extracted/unverified content clearly (e.g. `transcript_type: auto`).
-- Never store secrets, tokens, passwords, or private customer/source data; ask
-  before ingesting confidential or unauthorized material into git.
+- Keep full source text in `raw/`; keep the wiki distilled and readable.
+- For a large PDF, store it in `raw/assets/` and create a small source note that
+  points to it.
+- Label extracted or uncertain material, for example
+  `extraction_status: auto-unverified`.
+- Distinguish source claims from your own explanation or examples.
+- Do not commit paywalled, confidential, private, or unauthorized material
+  without explicit permission.
+- Never store secrets, credentials, tokens, or private customer data.
