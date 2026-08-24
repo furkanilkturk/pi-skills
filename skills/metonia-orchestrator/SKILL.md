@@ -55,6 +55,13 @@ loses the strong-planner/cheap-executor split and encourages scaffolding. When
 the request is only an already-approved plan's commit/push/build/review/closeout,
 reuse its log and do not create a release-successor plan.
 
+The runtime enforces the first-party skill/capability matrix. In particular,
+`review-plan` is read-only `fresh-review`, `execute-plan` is only a
+bounded/standard writer, learning skills use learning capabilities, and
+`update-project` may use bounded or standard write. `create-plan` and this
+orchestrator are parent-owned and cannot be delegated. Treat a rejected pairing
+as a caller bug; do not retry it with a more expensive capability.
+
 `bounded-learning` requires one clean high-confidence source that is neither
 dense nor highly technical. Any uncertainty routes to `deep-learning`. Learning
 capabilities do not inherit coding review requirements.
@@ -95,6 +102,18 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
   Repairs require idempotence, no external effect, the same writer worktree,
   and the same canonical gates. Scope/risk/dependency/write-set/effect
   expansion or limit exhaustion stops for approval.
+- Read-only discovery/preflight may use `safe-once` or `safe-twice`; a local
+  idempotent edit/check may use `safe-once`. The actual submission, deployment,
+  billed build invocation, destructive operation, or other external mutation
+  always uses `never`. If a writer ends with `mutation-unconfirmed`, inspect
+  the named local and external state before another call. Never interpret a
+  transport, model, timeout, or output-contract failure as proof that an
+  external mutation did not happen.
+- Only one parent session may own shared vault planning/status/closeout writes
+  at a time. Executor children never edit plan or project notes; they return
+  evidence to that parent, which re-reads the target immediately before its
+  small state update. Vault-writing delegated skills continue to use the
+  runtime's vault-root lock.
 - Before delegating, identify the dynamic ready dependency frontier: useful tasks whose
   dependencies are satisfied and whose reads or write sets do not conflict.
   Derive the wave size from that frontier; there is no fixed agent count. Emit
@@ -141,3 +160,5 @@ tradeoffs, and the condition requiring human approval; do not let it mutate.
 Use `/metonia-status` to reopen the current session's active and four most
 recent runs, including structured blocker and resume details. Human-facing
 runtime times use local `DD.MM.YYYY HH:mm`; audit JSON remains ISO UTC.
+The recent-run surface is session-local; after restarting Pi, use the
+content-minimized audit file for counts and routing diagnostics, not task text.

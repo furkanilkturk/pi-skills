@@ -10,13 +10,12 @@ import { Type } from "typebox";
 import { assertCapabilityControls, CAPABILITIES, loadRoutingConfig, resolveRoute } from "./routing.mjs";
 import { isStaleContextError, RunTracker } from "./run-tracker.mjs";
 import { collectReviewContext } from "./review-context.mjs";
-import { buildAuditRecord, buildChildTransport, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
+import { assertSkillCapability, buildAuditRecord, buildChildTransport, classifyRuntimeFailure, selectSkillCandidate, sha256, validateResult, workspaceHash } from "./runtime-contract.mjs";
 import { acquireWriterLock, assertVaultRoot } from "./writer-lock.mjs";
 
 const READ_ONLY = new Set(["efficient-read", "fresh-review", "deep-decision"]);
 const VAULT_WRITER_SKILLS = new Set([
 	"add-project",
-	"create-plan",
 	"create-project",
 	"delete-project",
 	"doc-learning",
@@ -203,6 +202,10 @@ function outputContract(agent: string, capability: string, criteria: string[], e
 		"METONIA_EVIDENCE:",
 		...evidence.map((item) => `- ${item}: <result>`),
 		"Use those exact evidence labels. Do not rename, translate, merge, or omit them.",
+		...(READ_ONLY.has(capability) ? [] : [
+			"After any local or external mutation, do not omit the status block. If final state is uncertain, return structured BLOCKED instead of claiming PASS.",
+			"A transport, model, or contract failure after this writer starts is mutation-unconfirmed. The parent must inspect target state before any next attempt and must never repeat an external mutation blindly.",
+		]),
 	].join("\n");
 }
 
@@ -277,6 +280,7 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 
 			try {
 				if (!/^[a-z0-9-]+$/.test(params.skill)) throw new Error("skill must be a hyphen-case installed skill name");
+				assertSkillCapability(params.skill, params.capability);
 				const cwd = path.resolve(ctx.cwd, params.cwd);
 				if (!fs.statSync(cwd).isDirectory()) throw new Error(`cwd is not a directory: ${cwd}`);
 				const skill = resolveSkillPath(params.skill);
@@ -448,6 +452,12 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					details.blocker = contract.blocker;
 					details.resumeWhen = contract.resumeWhen;
 				}
+				const uncertainWriterFailure = !READ_ONLY.has(params.capability) &&
+					details.status !== "passed" && details.status !== "blocked";
+				if (uncertainWriterFailure) {
+					details.status = "mutation-unconfirmed";
+					details.failureReason = "mutation-unconfirmed";
+				}
 				details.auditError = appendAudit(details, params.task);
 
 				const ok = exitCode === 0 && !timedOut && !signal.aborted && contract.ok;
@@ -457,11 +467,14 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const blockerLines = details.blocker
 					? [`step: ${details.blockedStep ?? "unspecified"}`, `blocker: ${details.blocker}`, `resume: ${details.resumeWhen ?? "unspecified"}`]
 					: [];
+				const mutationNotice = details.status === "mutation-unconfirmed"
+					? "Writer state is uncertain. Inspect the named files and any external operation state before continuing; do not retry blindly.\n"
+					: "";
 				const prefix = ok
 					? ""
 					: details.blocker
 						? `[${details.failureReason ?? "child-blocked"}] ${localTime()}\n${blockerLines.join("\n")}\n\n`
-						: `[${details.failureReason ?? "unknown"}] ${localTime()} · ${diagnostic}\n\n`;
+						: `[${details.failureReason ?? "unknown"}] ${localTime()} · ${diagnostic}\n${mutationNotice}\n`;
 				return {
 					content: [{ type: "text", text: `${prefix}${output || stderr || "(no child output)"}`.slice(0, OUTPUT_LIMIT) }],
 					details,

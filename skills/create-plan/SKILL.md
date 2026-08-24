@@ -21,6 +21,9 @@ This is a coding planner/orchestrator skill. The capable parent session authors
 and challenges the plan; it does not implement later work merely because it
 knows the answer. Children start fresh and receive only the approved plan and
 the files it names. `metonia-orchestrator` maps capabilities to local models.
+`create-plan` itself is parent-owned and must never be injected into a delegated
+worker. Scouts may gather bounded evidence, but the parent selects lineage,
+compresses the plan, writes it, and validates readiness.
 
 Map the canonical task mode to Pi by capability:
 
@@ -246,8 +249,7 @@ belong in the skill/policy, not in every plan.
   and a stable `^event-YYYYMMDD-HHmm-slug` block ID. Keep frontmatter
   `created`/`updated` machine-sortable as `YYYY-MM-DD`; do not rename legacy
   event headings because existing wikilinks may target them.
-- Append one line to the project `log.md` Build Log: plan created, path, goal.
-  If this takes `log.md` past about 300 lines, move the oldest Build Log entries
-  only to `archive/log-YYYY.md`; never archive Current State/Open Questions or
-  pre-create archive scaffolding.
+- Do not append a generic “plan created” line to the project Build Log. The
+  project's `Plans.base` and plan frontmatter already expose plan lifecycle;
+  reserve Build Log for completed work and durable project changes.
 - Update `wiki/Log.md` if the plan is notable.

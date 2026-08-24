@@ -122,10 +122,10 @@ foreach ($contract in @('Test bounded-write eligibility first', 'The capable par
 foreach ($contract in @('bounded lineage check', 'at most twelve candidates', 'at most five exact artifacts', 'Relevant History', 'history_check: complete', 'history_scan:', 'Skip catalog/index links', '^decision-*', '^lesson-*', 'planner owns `Relevant History` selection', 'must not open prior plan logs')) {
     if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks bounded history retrieval: $contract") }
 }
-foreach ($contract in @('standard-write` closeout', 'Learning harvest: none', 'project or concept page from the coding executor', 'owns the Build Log')) {
+foreach ($contract in @('bounded-write` closeout', 'otherwise use `standard-write`', 'Learning harvest: none', 'project or concept page from the coding executor', 'owns the Build Log')) {
     if ($contracts['execute-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("execute-plan lacks separate learning closeout: $contract") }
 }
-foreach ($contract in @('Pi Orchestration', 'capability: "standard-write"', 'Plan Closeout and Learning Harvest', 'at most three reusable ideas', 'Preserve other projects', 'Relevant History', 'Learning harvest: none', 'shared-vault writer lock', 'Append exactly one Build Log line')) {
+foreach ($contract in @('Pi Orchestration', 'Use `bounded-write`', '`standard-write` when target files may expand', 'Plan Closeout and Learning Harvest', 'at most three reusable ideas', 'Preserve other projects', 'Relevant History', 'Learning harvest: none', 'shared-vault writer lock', 'Append exactly one Build Log line', 'mutation-unconfirmed')) {
     if ($contracts['update-project'] -notmatch [Regex]::Escape($contract)) { $failures.Add("update-project lacks project-concept flywheel: $contract") }
 }
 foreach ($contract in @('Never preload or paste the complete plan', 'at most one exact linked', 'plan `log.md`')) {
@@ -145,7 +145,7 @@ foreach ($runtimeFile in @($runtimePath, $routingPath, $runtimeContractPath, $re
 }
 if (Test-Path -LiteralPath $runtimePath) {
     $runtime = Get-Content -LiteralPath $runtimePath -Raw
-    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertVaultRoot', 'VAULT_WRITER_SKILLS', 'assertCapabilityControls', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', 'buildAuditRecord', 'buildChildTransport', 'proc.stdin.end(transport.stdin)', 'skillCollision', 'collectReviewContext', 'reviewBase', 'node:os')) {
+    foreach ($contract in @('METONIA_DELEGATE_CHILD', 'acquireWriterLock', 'assertVaultRoot', 'VAULT_WRITER_SKILLS', 'assertCapabilityControls', 'assertSkillCapability', 'mutation-unconfirmed', 'ModelRuntime', 'getAvailable', 'metonia-runs.jsonl', 'buildAuditRecord', 'buildChildTransport', 'proc.stdin.end(transport.stdin)', 'skillCollision', 'collectReviewContext', 'reviewBase', 'node:os')) {
         if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks safety contract: $contract") }
     }
     if ($runtime.IndexOf('source: "bundled"') -gt $runtime.IndexOf('source: "global"')) { $failures.Add('runtime resolves global skills before bundled skills') }

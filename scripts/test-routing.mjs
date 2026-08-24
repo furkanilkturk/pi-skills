@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,7 @@ import {
 } from "../extensions/metonia-delegate/routing.mjs";
 import {
   auditErrorClass,
+  assertSkillCapability,
   buildAuditRecord,
   buildChildTransport,
   classifyRuntimeFailure,
@@ -97,6 +99,7 @@ assert.equal(audit.error_class, "contract");
 assert.equal(audit.failure_reason, "contract-missing-evidence");
 assert.equal(auditErrorClass("model-error"), "model");
 assert.equal(auditErrorClass("blocked"), "blocked");
+assert.equal(auditErrorClass("mutation-unconfirmed"), "mutation");
 for (const prohibited of ["cwd", "stderr", "brokerError", "auditError"]) {
   assert.equal(Object.hasOwn(audit, prohibited), false, `audit leaked ${prohibited}`);
 }
@@ -147,7 +150,7 @@ assert.equal(
 );
 assert.equal(
   validateResult("METONIA_RESULT: BLOCKED\nMETONIA_EVIDENCE:\n- blocker: reason", ["blocker"]).reasonCode,
-  "child-blocked",
+  "contract-missing-blocker-details",
 );
 const structuredBlock = validateResult([
   "METONIA_RESULT: BLOCKED",
@@ -171,11 +174,43 @@ assert.equal(classifyRuntimeFailure({ code: "ENOENT" }), "spawn-command-not-foun
 assert.equal(classifyRuntimeFailure(new Error("another Metonia writer is active")), "writer-lock-conflict");
 assert.equal(classifyRuntimeFailure(new Error("vault writer requires cwd to be the Metonia vault root")), "vault-root-required");
 assert.equal(safeFailureReason("contract-missing-result"), "contract-missing-result");
+assert.equal(safeFailureReason("mutation-unconfirmed"), "mutation-unconfirmed");
 assert.equal(safeFailureReason("private provider error"), undefined);
 
+assert.doesNotThrow(() => assertSkillCapability("update-project", "bounded-write"));
+assert.doesNotThrow(() => assertSkillCapability("update-project", "standard-write"));
+assert.doesNotThrow(() => assertSkillCapability("review-plan", "fresh-review"));
+assert.throws(() => assertSkillCapability("create-plan", "standard-write"), /parent-owned/);
+assert.throws(() => assertSkillCapability("review-plan", "standard-write"), /cannot run with capability/);
+assert.throws(() => assertSkillCapability("execute-plan", "fresh-review"), /cannot run with capability/);
+
 const reviewContext = collectReviewContext(repoRoot, "HEAD");
-for (const marker of ["AUTOMATIC_REVIEW_CONTEXT", "base:", "head:", "git status --short:", "git diff --name-only base..head:", "git worktree list --porcelain:"]) {
+for (const marker of ["AUTOMATIC_REVIEW_CONTEXT", "base:", "head:", "git status --short:", "committed files (base..head):", "staged files:", "unstaged files:", "untracked files", "git worktree list --porcelain:"]) {
   assert.ok(reviewContext.includes(marker), `review context missing ${marker}`);
+}
+
+const reviewRepo = fs.mkdtempSync(path.join(os.tmpdir(), "metonia-review-test-"));
+try {
+  const runGit = (...args) => execFileSync("git", args, { cwd: reviewRepo, encoding: "utf8", windowsHide: true });
+  runGit("init");
+  runGit("config", "core.autocrlf", "false");
+  fs.writeFileSync(path.join(reviewRepo, "tracked.txt"), "base\n");
+  fs.writeFileSync(path.join(reviewRepo, "staged.txt"), "base\n");
+  runGit("add", ".");
+  runGit("-c", "user.name=Metonia Test", "-c", "user.email=metonia-test", "commit", "-m", "base");
+  fs.writeFileSync(path.join(reviewRepo, "tracked.txt"), "unstaged change\n");
+  fs.writeFileSync(path.join(reviewRepo, "staged.txt"), "staged change\n");
+  runGit("add", "staged.txt");
+  fs.writeFileSync(path.join(reviewRepo, "untracked.txt"), "private untracked content\n");
+  const dirtyReview = collectReviewContext(reviewRepo, "HEAD");
+  assert.ok(dirtyReview.includes("staged.txt"), "review context must list staged changes");
+  assert.ok(dirtyReview.includes("staged change"), "review context must embed staged diff content");
+  assert.ok(dirtyReview.includes("tracked.txt"), "review context must list unstaged changes");
+  assert.ok(dirtyReview.includes("unstaged change"), "review context must embed unstaged diff content");
+  assert.ok(dirtyReview.includes("untracked.txt"), "review context must list untracked paths");
+  assert.equal(dirtyReview.includes("private untracked content"), false, "review context must not embed untracked contents");
+} finally {
+  fs.rmSync(reviewRepo, { recursive: true, force: true });
 }
 
 const tracker = new RunTracker(2);

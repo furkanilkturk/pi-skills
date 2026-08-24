@@ -39,6 +39,14 @@ schema, base commit, risk, and step controls, then call `metonia_delegate` with
 `bounded-write` or `standard-write`. Explicitly inject `execute-plan`. When this
 skill is injected into the child, execute directly and do not delegate again.
 
+The parent session is the sole plan-state writer. It updates plan/step status,
+`Current Execution`, amendments, and plan `log.md` after re-reading the target.
+An executor child treats every vault file as read-only, writes only inside its
+repository/worktree `cwd`, and returns evidence or a structured blocker. Keep
+only one parent session performing shared-vault plan/status/closeout writes at a
+time; repository workers may still run in parallel when the plan contract
+permits it.
+
 Use this shape with actual absolute paths:
 
 ```js
@@ -87,8 +95,8 @@ After implementation evidence passes, use `fresh-review` with
 `reviewBase` set to the plan's approved base commit, commands/results,
 plan-specific controls, residual risks, and only the exact plan-log event links
 needed to prove the current execution. Never preload or paste the complete plan
-`log.md`. The broker supplies the current
-actual diff, changed-file list, clean state, and worktree list automatically;
+`log.md`. The broker supplies committed, staged, and unstaged diffs, the
+untracked-file list, status, and worktree list automatically;
 do not spend parent tokens restating those generated artifacts. Keep the plan `in-progress` until required reviewer
 blockers are resolved or explicitly deferred by the user. Execute directly in
 the parent only when `metonia_delegate` is unavailable or the user explicitly
@@ -129,49 +137,54 @@ selects the parent session; record that exception in the plan.
    when explicit user selection/approval is recorded in the plan `log.md` and
    linked from `Current Execution`;
    otherwise block and request that approval before implementation writes.
-4. Set plan frontmatter `status: in-progress`.
+4. The parent re-reads the plan, then sets plan frontmatter
+   `status: in-progress` before launching the executor.
 5. For each step with `status: todo`, in order:
    - resolve its human gate once: when an exact plan-log approval already covers
      the bounded sequence and `Current Execution` links that event, treat the
      named actions as approved without asking again at every commit/push/build
      step. Approval never authorizes a retry, wider scope, or another external
      action;
-   - set step `doing`;
+   - the parent sets the step `doing`; the child does not edit vault state;
    - load its packet when declared, then read only the files that packet/step names;
    - make exactly the change described, never making implementation writes
      outside `Files:`;
    - run the step's done-check;
-   - pass → `done`; append the command/result evidence to plan `log.md`, then
-     update only the bounded `Current Execution` snapshot in `index.md`;
+   - pass → the child returns named evidence; the parent re-reads the plan,
+     marks the step `done`, appends one delta-only command/result event to plan
+     `log.md`, then updates the bounded `Current Execution` snapshot;
      fail → allow no correction for `retry: never`, one same-scope
      deterministic correction for `retry: safe-once` (two total attempts), or
      two corrections for `retry: safe-twice` (three total attempts), only when
      `idempotent: true` and `external_effects: none|local-build`; keep the same
      worktree and canonical gates. If the scope, risk, dependency, write set,
-     external effects, or selected correction limit changes, stop for approval. Otherwise
-     set the step `status: blocked`, append the exact error/evidence to plan
-     `log.md`, set plan `status: blocked` with `blocked_reason:` and
-     `resume_when:`, link that event from `Current Execution`, then stop and
-     report `METONIA_BLOCKED_STEP`, a short redacted `METONIA_BLOCKER`, and
+     external effects, or selected correction limit changes, stop for approval.
+     The actual submit, deploy, billed build, destructive, or other external
+     mutation always has `retry: never`; read-only preflight may retry within
+     its declared bound. On failure the child reports `METONIA_BLOCKED_STEP`,
+     a short redacted `METONIA_BLOCKER`, and
      exact `METONIA_RESUME_WHEN`. Do not expose secrets, absolute paths, raw
-     stderr, or stack traces in those human status fields.
+     stderr, or stack traces in those human status fields. The parent then
+     re-reads the plan, marks step/plan blocked, records the exact delta
+     evidence, and links that event from `Current Execution`.
+     A `mutation-unconfirmed` result is never a retry signal: inspect named
+     files and external operation state first, then resume only missing work.
    For an authorized parallel group, the parent applies this state machine to
    every meaningful ready member while each child is limited to its assigned
    step; read-only roles use no worktrees, while each writer gets one isolated
    worktree; the
    integration contract replaces only scheduling, never step checks or gates.
 6. On a plan/repo mismatch:
-   - **Strict:** do not explore or write off-plan. Block the step and plan with
-     the mismatch and the condition needed to resume, then stop.
+   - **Strict:** do not explore or write off-plan. The child reports the
+     mismatch; the parent blocks the step/plan with the resume condition.
    - **Adaptive:** stop implementation writes. If security, privacy, or data-loss
      uncertainty is involved, do not inspect adjacent files or speculate; use
      the existing mismatch evidence only. Otherwise inspect read-only at most
-   five directly related adjacent files or callers. Append
-   `## Proposed Amendment — YYYY-MM-DD` to plan `log.md` with the
+     five directly related adjacent files or callers. Return a proposed
+     amendment containing the
      affected step, evidence and inspected files, revised exact paths, revised
-     checks, and ownership. Set the step/plan blocked with `blocked_reason:` and
-     `resume_when:`, then wait for human approval. Only these plan control-record
-     writes are allowed before approval.
+     checks, and ownership. The parent appends the dated amendment event,
+     blocks the step/plan, and waits for human approval.
    - After explicit approval, amend the current controls in `index.md`/the
      active packet, record approval in plan `log.md`, link that event from
      `Current Execution`, restore the step to `todo` and plan to `in-progress`,
@@ -179,15 +192,16 @@ selects the parent session; record that exception in the plan.
 7. Never skip or reorder steps. Adaptive changes the amendment procedure, not
    the permission to make off-plan writes.
    Do not create a new plan during execution merely to perform an already
-   approved commit, push, build, review, or `update-project` closeout. Append
-   evidence to the current plan log. A genuinely new scope returns to planning.
+    approved commit, push, build, review, or `update-project` closeout. The
+    parent appends evidence to the current plan log. A genuinely new scope
+    returns to planning.
 8. When all steps are done:
    - read only the project index's **Commands** section, then run its full
      verification (lint/check/test);
    - apply the completed-work metric and stop rules from canonical **Planning
      and Execution**;
-   - fill the plan's Success Criteria checkboxes and update its bounded
-     `Current Execution` snapshot;
+   - the parent fills the plan's Success Criteria checkboxes and updates its
+     bounded `Current Execution` snapshot;
    - keep plan `status: in-progress` while required independent review is
      pending; a passing implementation check is necessary but not completion;
    - do not update project `index.md`, `log.md`, `rules.md`, Knowledge Lens, or
@@ -199,13 +213,14 @@ selects the parent session; record that exception in the plan.
    links only. It must inspect the broker's
    automatic actual diff and
    report pass/fail plus blockers. Only after all steps/checks pass and required
-   review blockers are resolved or explicitly deferred by the user, set plan
-   `status: done` and append one final plan-log event containing the final diff
+   review blockers are resolved or explicitly deferred by the user, the parent
+   sets plan `status: done` and appends one final delta-only plan-log event containing the final diff
    summary, verification result, review result, and deviations. Do not write any
    project or concept page from the coding executor.
 
    The parent must then run `update-project` exactly once as a separate
-   `standard-write` closeout with `cwd` set to the Metonia vault root. Give it
+   `bounded-write` closeout when its exact low-risk write set and controls are
+   known; otherwise use `standard-write`. Set `cwd` to the Metonia vault root. Give it
    only the project path, completed plan path, final diff summary, review result,
    and exact final plan-log event; never the complete plan log. `update-project`
    owns the Build Log and every project/concept update. It still records the

@@ -29,7 +29,9 @@ Ask the user, preferably in one grouped questionnaire:
    later via the add-project skill.
 7. Important rules/preferences?
 8. What should AI not change without asking?
-9. Git/GitHub: init git now? If yes, private or public? (default: private)
+9. Git/GitHub: should repository setup be a separate follow-up action? Vault
+   creation alone never authorizes repository creation or push. If requested,
+   ask private/public (default: private) immediately before that action.
 
 ## Output Path
 
@@ -57,14 +59,16 @@ If a linked concept doesn't exist yet and it is durable/reusable, create
 `wiki/concepts/<Concept>.md` as a living stub (what it is + minimal example).
 Skip one-off or project-specific facts — those stay in `log.md`.
 
-## Git Init (when requested)
+## Git Init (separate explicit action)
 
-If the user wants git/GitHub for a new project:
+Complete the vault project first. Only if the user explicitly authorizes the
+separate repository action:
 
 1. `git init` in the repo path (if not already a repo).
 2. Create an initial commit (README, .gitignore) if the repo is empty.
-3. `gh repo create <name> --private|--public --source . --push` (prefer `gh` if
-   available, else ask for the remote URL).
+3. Ask once more before the external `gh repo create ... --push` mutation, then
+   run it at most once. Prefer `gh` if available; otherwise ask for the remote
+   URL. On ambiguous failure, inspect local/remote state before any retry.
 4. Default to **private** unless the user says public.
 5. Record the repo URL in `index.md` frontmatter `repo_url:`.
 

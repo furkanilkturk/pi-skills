@@ -11,10 +11,12 @@ command results as the review record; do not assume an implementation claim is
 true without checking the diff.
 
 When the handoff includes `AUTOMATIC_REVIEW_CONTEXT`, treat its resolved
-base/HEAD, status, changed-file list, diff, and worktree list as broker-captured
-read-only Git evidence. Still require command results and plan-specific gate,
-retry, and external-effect evidence from the parent; the Git snapshot cannot
-prove those execution facts.
+base/HEAD, status, committed diff, staged diff, unstaged diff, untracked-file
+names, and worktree list as broker-captured read-only Git evidence. Untracked
+contents are not embedded; open each in-scope untracked file explicitly before
+passing. Still require command results and plan-specific gate, retry, and
+external-effect evidence from the parent; the Git snapshot cannot prove those
+execution facts.
 
 ## Required inputs
 

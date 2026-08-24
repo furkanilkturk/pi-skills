@@ -7,6 +7,7 @@ const SAFE_FAILURE_REASONS = new Set([
   "child-exit-nonzero",
   "child-model-error",
   "contract-missing-evidence",
+  "contract-missing-blocker-details",
   "contract-missing-result",
   "invalid-controls",
   "invalid-cwd",
@@ -14,8 +15,21 @@ const SAFE_FAILURE_REASONS = new Set([
   "skill-not-found",
   "spawn-command-not-found",
   "timeout",
+  "mutation-unconfirmed",
   "writer-lock-conflict",
   "vault-root-required",
+]);
+
+const SKILL_CAPABILITIES = new Map([
+  ["add-project", new Set(["bounded-write", "standard-write"])],
+  ["create-project", new Set(["standard-write"])],
+  ["delete-project", new Set(["standard-write"])],
+  ["doc-learning", new Set(["bounded-learning", "deep-learning"])],
+  ["execute-plan", new Set(["bounded-write", "standard-write"])],
+  ["review-plan", new Set(["fresh-review"])],
+  ["update-project", new Set(["bounded-write", "standard-write"])],
+  ["video-learning", new Set(["bounded-learning", "deep-learning"])],
+  ["work-vault-context", new Set(["efficient-read"])],
 ]);
 
 export function sha256(value) {
@@ -48,7 +62,19 @@ export function auditErrorClass(status) {
   if (status === "aborted") return "aborted";
   if (status === "invalid-contract") return "contract";
   if (status === "model-error") return "model";
+  if (status === "mutation-unconfirmed") return "mutation";
   return "runtime";
+}
+
+export function assertSkillCapability(skill, capability) {
+  if (skill === "create-plan" || skill === "metonia-orchestrator") {
+    throw new Error(`${skill} is parent-owned and cannot be delegated`);
+  }
+  const allowed = SKILL_CAPABILITIES.get(skill);
+  if (!allowed) throw new Error(`skill '${skill}' is not a delegatable Metonia skill`);
+  if (!allowed.has(capability)) {
+    throw new Error(`skill '${skill}' cannot run with capability '${capability}'`);
+  }
 }
 
 export function normalizeEvidenceLabel(value) {
@@ -83,6 +109,21 @@ export function parseBlockedDetails(output) {
 export function validateResult(output, evidence) {
   if (/^METONIA_RESULT:\s*BLOCKED\s*$/mi.test(output)) {
     const blocked = parseBlockedDetails(output);
+    const missingDetails = [
+      ["METONIA_BLOCKED_STEP", blocked.blockedStep],
+      ["METONIA_BLOCKER", blocked.blocker],
+      ["METONIA_RESUME_WHEN", blocked.resumeWhen],
+    ].filter(([, value]) => !value).map(([name]) => name);
+    if (missingDetails.length > 0) {
+      return {
+        ok: false,
+        status: "invalid-contract",
+        reason: `BLOCKED missing structured fields: ${missingDetails.join(", ")}`,
+        reasonCode: "contract-missing-blocker-details",
+      };
+    }
+    const evidenceCheck = validateEvidence(output, evidence);
+    if (!evidenceCheck.ok) return evidenceCheck;
     return {
       ok: false,
       status: "blocked",
@@ -100,6 +141,10 @@ export function validateResult(output, evidence) {
     };
   }
 
+  return validateEvidence(output, evidence);
+}
+
+function validateEvidence(output, evidence) {
   const evidenceSection = output.split(/^METONIA_EVIDENCE:\s*$/mi)[1] ?? "";
   const reported = new Set(
     [...evidenceSection.matchAll(/^\s*-\s*([^:\r\n]+)\s*:/gm)]
@@ -125,6 +170,7 @@ export function classifyRuntimeFailure(error) {
   if (message.includes("vault writer requires cwd")) return "vault-root-required";
   if (message.includes("cwd is not a directory")) return "invalid-cwd";
   if (message.includes("installed skill not found")) return "skill-not-found";
+  if (message.includes("parent-owned") || message.includes("cannot run with capability") || message.includes("not a delegatable")) return "invalid-controls";
   if (message.includes("requires controls") || message.includes("use standard-write") || message.includes("use deep-learning")) return "invalid-controls";
   if (message.includes("routing") || message.includes("parent session model")) return "routing-failure";
   return "broker-exception";

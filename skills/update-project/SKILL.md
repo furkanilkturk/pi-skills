@@ -12,13 +12,21 @@ machine-specific fallback.
 ## Pi Orchestration
 
 In a parent session, load `metonia-orchestrator` and call `metonia_delegate`
-once with `capability: "standard-write"`, `skill: "update-project"`, and `cwd`
-set to the Metonia vault root. Supply the bounded closeout/update evidence and
-target project path. The runtime rejects a repo cwd so all project and shared
-concept writes use one vault-root lock. When this skill is injected into the
-child, update directly and do not delegate again. If `metonia_delegate` is
-unavailable, run in the current session, disclose that the shared lock was not
-available, and still re-read targets immediately before writing.
+once with `skill: "update-project"` and `cwd` set to the Metonia vault root.
+Use `bounded-write` for an unambiguous closeout or sync whose exact cohesive
+write set is known in advance (at most six files), risk is low, the vault base
+matches, checks are deterministic, and there is no human gate, sensitive
+decision, or external effect. Pass all bounded-write controls. Use
+`standard-write` when target files may expand, concept selection is unresolved,
+or any fast-lane condition fails. A vault write is not standard merely because
+it is a vault write.
+
+Supply only the bounded closeout/update evidence and target project path. The
+runtime rejects a repo cwd so all project and shared concept writes use one
+vault-root lock. When this skill is injected into the child, update directly
+and do not delegate again. If `metonia_delegate` is unavailable, run in the
+current session, disclose that the shared lock was not available, and still
+re-read targets immediately before writing.
 
 ## Goal
 
@@ -64,8 +72,13 @@ Do not summarize every commit. Do not copy code.
    - Current snapshot/open questions/Decisions/Lessons/Build Log → `log.md`
    - Rule changes → `rules.md`
    - Only touch `skills.md` if the project has custom skills and they changed
-6. Ask before writing if changes are ambiguous.
-7. After the writer lock is held, re-read every target vault file immediately
+6. Before proposing or writing a completed-plan closeout, search the current
+   project Build Log and intended concept subsections for the exact completed
+   plan link or final event block ID. If it is already recorded, do not append
+   it again; reconcile only genuinely missing durable facts and report the
+   closeout as already recorded when nothing is missing.
+7. Ask before writing if changes are ambiguous.
+8. After the writer lock is held, re-read every target vault file immediately
    before its first write and preserve unrelated/concurrent sections. Update the
    project folder files. Keep Current State to about 10 bullets. If
    `log.md` exceeds about 300 lines, move its oldest Build Log entries only to
@@ -117,6 +130,11 @@ phase, never as extra work for coding workers:
 5. If there is no durable context or reusable lesson beyond the completion
    record, make no other project/concept edits and report
    `Learning harvest: none`.
+
+If a prior writer ended as `mutation-unconfirmed`, first re-read the exact
+project/concept targets and search for the plan/final-event dedupe key. Resume
+only the missing portion. Never repeat the whole update or any external action
+from the failed child response.
 
 Use local `DD.MM.YYYY HH:mm` for new human-visible Build Log and event text;
 keep frontmatter `created`/`updated` as `YYYY-MM-DD` and repository/audit

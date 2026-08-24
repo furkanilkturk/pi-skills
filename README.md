@@ -2,11 +2,12 @@
 
 Pi-native skills, delegation, and model routing for a Metonia vault.
 
-This repository is the canonical Pi development and local-sync source. The
-installed files under `~/.pi/agent` are a mirror. The public Metonia repository
-ships the same first-party extension and provider-neutral skill contracts so
-normal users can install Metonia without a second package. Provider names stay
-outside durable vault plans and no third-party subagent package is required.
+The public Metonia repository is canonical for shared provider-neutral skills
+and runtime behavior. This repository is the standalone Pi packaging and
+local-sync distribution; installed files under `~/.pi/agent` are a mirror.
+Normal Metonia users can install the main repository without a second package.
+Provider names stay outside durable vault plans and no third-party subagent
+package is required.
 
 ## Skill groups
 
@@ -75,14 +76,18 @@ while the child prompt prints the exact labels it must return. Failed runs expos
 a short allowlisted reason such as `child-blocked`, `child-exit-nonzero`, or
 `contract-missing-evidence` in the widget and audit record without persisting
 private stderr. Fresh-review calls may set `reviewBase`; the broker then attaches
-the actual base-to-HEAD diff, changed-file list, status, branch, and worktree list
-instead of spending parent tokens restating Git evidence.
+committed, staged, and unstaged diffs plus untracked file names, status, branch,
+and worktrees instead of spending parent tokens restating Git evidence.
+Untracked contents must be opened explicitly when they are in review scope.
 
 Blocked children also return a redacted step, concrete blocker, and exact resume
 condition. The live widget shows those human fields for 20 seconds; run
 `/metonia-status` to reopen the current session's active and four most recent
-runs. Human time is local `DD.MM.YYYY HH:mm`; privacy-safe audit JSON remains
-ISO UTC. `scripts/show-runs.ps1` renders the audit in the same local format.
+runs. That recent-run view is session-local. Human time is local
+`DD.MM.YYYY HH:mm`; content-minimized audit JSON remains ISO UTC. Workspace and
+task hashes are pseudonymous correlation identifiers, not anonymization, and
+the audit is not a secret-scanning guarantee. `scripts/show-runs.ps1` renders
+the audit in the same local format.
 
 It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
@@ -185,7 +190,7 @@ For a one-off run, set `METONIA_ROUTING_PROFILE` or pass `profile` to
 Custom profile names are supported: add one to the local JSON, then pass its
 name to `configure-routing.ps1 -Profile`.
 
-Inspect recent privacy-safe delegation records:
+Inspect recent content-minimized delegation records:
 
 ```powershell
 pwsh ./scripts/show-runs.ps1 -Count 20

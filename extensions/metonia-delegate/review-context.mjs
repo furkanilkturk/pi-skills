@@ -26,8 +26,13 @@ export function collectReviewContext(cwd, baseRef) {
   const head = git(cwd, ["rev-parse", "HEAD"]).trim();
   const branch = git(cwd, ["branch", "--show-current"]).trim() || "(detached)";
   const status = git(cwd, ["status", "--short"]) || "(clean)";
-  const changedFiles = git(cwd, ["diff", "--name-only", `${base}..${head}`]) || "(none)";
-  const diff = git(cwd, ["diff", "--no-ext-diff", "--unified=3", `${base}..${head}`]) || "(empty)";
+  const committedFiles = git(cwd, ["diff", "--name-only", `${base}..${head}`]) || "(none)";
+  const committedDiff = git(cwd, ["diff", "--no-ext-diff", "--unified=3", `${base}..${head}`]) || "(empty)";
+  const stagedFiles = git(cwd, ["diff", "--cached", "--name-only"]) || "(none)";
+  const stagedDiff = git(cwd, ["diff", "--cached", "--no-ext-diff", "--unified=3"]) || "(empty)";
+  const unstagedFiles = git(cwd, ["diff", "--name-only"]) || "(none)";
+  const unstagedDiff = git(cwd, ["diff", "--no-ext-diff", "--unified=3"]) || "(empty)";
+  const untrackedFiles = git(cwd, ["ls-files", "--others", "--exclude-standard"]) || "(none)";
   const worktrees = git(cwd, ["worktree", "list", "--porcelain"]);
 
   return [
@@ -39,13 +44,33 @@ export function collectReviewContext(cwd, baseRef) {
     "```text",
     status,
     "```",
-    "git diff --name-only base..head:",
+    "committed files (base..head):",
     "```text",
-    changedFiles,
+    committedFiles,
     "```",
-    "git diff --no-ext-diff --unified=3 base..head:",
+    "committed diff (base..head):",
     "```diff",
-    diff,
+    committedDiff,
+    "```",
+    "staged files:",
+    "```text",
+    stagedFiles,
+    "```",
+    "staged diff:",
+    "```diff",
+    stagedDiff,
+    "```",
+    "unstaged files:",
+    "```text",
+    unstagedFiles,
+    "```",
+    "unstaged diff:",
+    "```diff",
+    unstagedDiff,
+    "```",
+    "untracked files (names only; contents are not embedded—review them explicitly when in scope):",
+    "```text",
+    untrackedFiles,
     "```",
     "git worktree list --porcelain:",
     "```text",
