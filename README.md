@@ -78,6 +78,12 @@ private stderr. Fresh-review calls may set `reviewBase`; the broker then attache
 the actual base-to-HEAD diff, changed-file list, status, branch, and worktree list
 instead of spending parent tokens restating Git evidence.
 
+Blocked children also return a redacted step, concrete blocker, and exact resume
+condition. The live widget shows those human fields for 20 seconds; run
+`/metonia-status` to reopen the current session's active and four most recent
+runs. Human time is local `DD.MM.YYYY HH:mm`; privacy-safe audit JSON remains
+ISO UTC. `scripts/show-runs.ps1` renders the audit in the same local format.
+
 It uses Pi's own CLI and installed model/auth catalog. It does not depend on
 `pi-subagents`, and it deliberately omits fleets, nested delegation, missions,
 background jobs, inter-agent chat, and automatic worktree management.
@@ -98,7 +104,7 @@ write-capable children are never retried automatically.
 | Capability | Work |
 |---|---|
 | `efficient-read` | Read-only reconnaissance and source lookup. |
-| `bounded-write` | Exact low-risk write set of at most three files. |
+| `bounded-write` | Exact cohesive low-risk write set of at most six files. |
 | `standard-write` | Larger, uncertain, sensitive, or technical coding implementation. |
 | `bounded-learning` | One short, clean, high-confidence learning source. |
 | `deep-learning` | Dense, long, multi-source, technical, or uncertain ingest. |
@@ -128,13 +134,21 @@ the automatic candidate policy plus `portable`, `codex`, `opencode-go`,
 without changing vault plans or skill semantics.
 
 `bounded-write` may run only when scope and checks are exact, the total write
-set is at most three files, risk is low, effects are local, no human gate or
+set is at most six files, risk is low, effects are local, no human gate or
 sensitive domain is involved, and the base commit matches. Ambiguity, a failed
 safety check, or scope growth stops the run. Same-scope deterministic repairs
 follow the plan's retry policy: `safe-once` permits one correction and
 `safe-twice` two; both require idempotence, no external effect, the same writer
 worktree, and the same canonical gates. Expansion or an exhausted limit waits
 for approval.
+
+The capable parent writes and compresses plans; workers execute them. Risk
+strengthens gates but does not inflate plan size. Already-approved
+commit/push/build/review closeout reuses the current plan log instead of
+creating a successor release plan. Compact plans keep sequential and Critical
+checklists inline; packet files are reserved for real handoffs or material
+active-context reduction. Bulky closed history uses `plan_shape: archived`, so
+its evidence remains linkable without entering normal execution context.
 
 ## Install or synchronize
 

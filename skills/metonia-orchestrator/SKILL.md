@@ -22,7 +22,7 @@ Choose one capability before choosing a model:
 | Capability | Use when |
 |---|---|
 | `efficient-read` | Bounded reconnaissance, metadata lookup, or source lookup; no writes. |
-| `bounded-write` | Low-risk work with an exact write set of at most three files and deterministic checks. |
+| `bounded-write` | Low-risk work with one cohesive exact write set of at most six files and deterministic checks. |
 | `standard-write` | Larger, uncertain, technical, sensitive, or otherwise non-fast-lane coding implementation. |
 | `bounded-learning` | One short, clean, high-confidence source or transcript. |
 | `deep-learning` | Dense, long, multi-source, highly technical, or uncertain learning ingest. |
@@ -39,6 +39,21 @@ roles into a generic subagent.
 effects are local, no human gate or sensitive domain is involved, and both the
 write set and checks are exact. Any ambiguity or scope growth routes to
 `standard-write`; it never grants broader scope.
+
+Classify the work that will actually execute, not the size of its surrounding
+project or the existence of a plan. Test bounded-write eligibility first; do
+not choose `standard-write` merely because the task writes vault files, follows
+a plan, or belongs to a Critical workflow. Critical changes gate strength, not
+implementation complexity. A known low-risk closeout such as an exact
+`update-project` edit may use bounded-write; commit, push, build, deployment, or
+another external effect remains standard-write.
+
+The capable parent owns `create-plan` authorship. It may delegate bounded
+read-only evidence collection or a deep decision, but it must select, compress,
+and write the final plan itself. Do not delegate plan prose to a worker: that
+loses the strong-planner/cheap-executor split and encourages scaffolding. When
+the request is only an already-approved plan's commit/push/build/review/closeout,
+reuse its log and do not create a release-successor plan.
 
 `bounded-learning` requires one clean high-confidence source that is neither
 dense nor highly technical. Any uncertainty routes to `deep-learning`. Learning
@@ -64,6 +79,10 @@ overrides. Provider-specific mappings live in `METONIA_ROUTING_CONFIG` or
   skills.
 - Give the child an exact task, cwd, named inputs, boundaries, stop conditions,
   acceptance criteria, and evidence requirements.
+- A blocked child must return `METONIA_BLOCKED_STEP`, a short redacted
+  `METONIA_BLOCKER`, and exact `METONIA_RESUME_WHEN` in addition to its
+  evidence. These fields are the human status surface; never put secrets,
+  absolute paths, stderr, or stack traces in them.
 - Supply `controls` for `bounded-write` or `bounded-learning`; the runtime
   rejects an ineligible fast-lane call instead of trusting the model's label.
 - Allow only one writer in a cwd/worktree at a time. Vault-mutating skills must
@@ -118,3 +137,7 @@ and worktree list. Do not duplicate that generated Git material in `task`, but
 do include verification output and plan-specific setup/gate evidence that Git
 cannot infer. For `deep-decision`, request a decision with alternatives, evidence,
 tradeoffs, and the condition requiring human approval; do not let it mutate.
+
+Use `/metonia-status` to reopen the current session's active and four most
+recent runs, including structured blocker and resume details. Human-facing
+runtime times use local `DD.MM.YYYY HH:mm`; audit JSON remains ISO UTC.

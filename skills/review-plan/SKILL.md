@@ -61,5 +61,8 @@ METONIA_EVIDENCE:
 ```
 
 Use `METONIA_RESULT: BLOCKED` with the same labels whenever a required item is
-missing or fails. A PASS means the reviewed record matches the approved plan;
+missing or fails. Immediately follow a blocked result with
+`METONIA_BLOCKED_STEP`, a short redacted `METONIA_BLOCKER`, and exact
+`METONIA_RESUME_WHEN` so the parent and widget can show the real gate. A PASS
+means the reviewed record matches the approved plan;
 it does not authorize additional work.

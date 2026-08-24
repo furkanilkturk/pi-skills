@@ -22,8 +22,8 @@ Use `metonia-orchestrator` by capability, not by the parent session model:
 - **Quick execution:** `bounded-write` for mechanical,
   low-risk, reversible, one-file work with an exact check. No formal plan or
   independent review unless stricter project rules require them.
-- **Bounded low-risk Standard:** `bounded-write` may execute an exact plan of at most
-  three files with deterministic checks, no sensitive domain, no human gate,
+- **Bounded low-risk Standard:** `bounded-write` may execute one cohesive exact
+  plan of at most six files with deterministic checks, no sensitive domain, no human gate,
   and no effect beyond `none` or `local-build`; use `fresh-review`.
 - **Standard execution and review:** `standard-write`, then `fresh-review`.
   The writer owns one write set; review inspects the actual diff and evidence

@@ -222,7 +222,7 @@ export function assertCapabilityControls(capability, controls) {
       !path.isAbsolute(file) && !file.split(/[\\/]+/).includes(".."));
     const uniqueFiles = new Set(rawFiles.map((file) => typeof file === "string" ? file.trim().toLowerCase() : file));
     const eligible = controls.risk === "low" && validFiles && rawFiles.length >= 1 &&
-      rawFiles.length <= 3 && uniqueFiles.size === rawFiles.length &&
+      rawFiles.length <= 6 && uniqueFiles.size === rawFiles.length &&
       controls.deterministicChecks === true && controls.sensitiveDecision === false &&
       controls.externalEffect === false && controls.humanGate === false &&
       controls.baseCommitMatches === true;

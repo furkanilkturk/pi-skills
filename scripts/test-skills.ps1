@@ -84,6 +84,11 @@ foreach ($parallelContract in @('dynamic ready dependency frontier', 'no fixed a
         $failures.Add("metonia-orchestrator lacks adaptive parallel guidance: $parallelContract")
     }
 }
+foreach ($contract in @('METONIA_BLOCKED_STEP', 'METONIA_BLOCKER', 'METONIA_RESUME_WHEN', '/metonia-status', 'DD.MM.YYYY HH:mm')) {
+    if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape($contract)) {
+        $failures.Add("metonia-orchestrator lacks human blocker/status contract: $contract")
+    }
+}
 foreach ($contract in @('plans/<slug>/index.md', 'sibling `plans/<slug>.md`', 'safe-twice', 'deterministic', 'three total attempts', 'canonical gates', 'final integrated diff')) {
     $found = $false
     foreach ($skillName in @('create-plan', 'execute-plan', 'metonia-orchestrator')) {
@@ -99,6 +104,20 @@ foreach ($contract in @('safe-once', 'safe-twice', 'three total attempts', 'exte
 }
 foreach ($contract in @('index.md` plus `log.md', 'Current Execution', 'Do not copy historical log entries')) {
     if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks compact plan-log policy: $contract") }
+}
+foreach ($contract in @('Compact Standard', 'optional packetization tools', 'superseded_by', 'cancelled_reason', 'Plans.base', 'DD.MM.YYYY HH:mm')) {
+    if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks adaptive human plan contract: $contract") }
+}
+foreach ($contract in @('Risk controls the strength of gates', 'Do not create a successor plan merely', 'plan_shape: compact', 'Human/external gates stay inline', '20–80 index lines', 'Generic execution rules')) {
+    if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks anti-overengineering contract: $contract") }
+}
+if ($contracts['create-plan'] -notmatch [Regex]::Escape('plan_shape: archived')) { $failures.Add('create-plan lacks cold historical plan shape') }
+if ($contracts['execute-plan'] -notmatch [Regex]::Escape('closed historical evidence, not an executable')) { $failures.Add('execute-plan may resume archived history') }
+foreach ($contract in @('resolve its human gate once', 'Do not create a new plan during execution merely')) {
+    if ($contracts['execute-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("execute-plan lacks approval/closeout reuse contract: $contract") }
+}
+foreach ($contract in @('Test bounded-write eligibility first', 'The capable parent owns `create-plan` authorship', 'reuse its log')) {
+    if ($contracts['metonia-orchestrator'] -notmatch [Regex]::Escape($contract)) { $failures.Add("metonia-orchestrator lacks planner/cheap-executor contract: $contract") }
 }
 foreach ($contract in @('bounded lineage check', 'at most twelve candidates', 'at most five exact artifacts', 'Relevant History', 'history_check: complete', 'history_scan:', 'Skip catalog/index links', '^decision-*', '^lesson-*', 'planner owns `Relevant History` selection', 'must not open prior plan logs')) {
     if ($contracts['create-plan'] -notmatch [Regex]::Escape($contract)) { $failures.Add("create-plan lacks bounded history retrieval: $contract") }
@@ -131,6 +150,9 @@ if (Test-Path -LiteralPath $runtimePath) {
     }
     if ($runtime.IndexOf('source: "bundled"') -gt $runtime.IndexOf('source: "global"')) { $failures.Add('runtime resolves global skills before bundled skills') }
     if ($runtime -match 'from\s+["'']pi-subagents') { $failures.Add('runtime imports pi-subagents') }
+    foreach ($contract in @('registerCommand("metonia-status"', 'METONIA_BLOCKED_STEP', 'METONIA_BLOCKER', 'METONIA_RESUME_WHEN', '20_000')) {
+        if ($runtime -notmatch [Regex]::Escape($contract)) { $failures.Add("runtime lacks human blocker/status UI: $contract") }
+    }
 }
 if (Test-Path -LiteralPath $runtimeContractPath) {
     $runtimeContract = Get-Content -LiteralPath $runtimeContractPath -Raw
@@ -182,7 +204,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 
 function Test-BoundedWriteEligibility {
     param([pscustomobject]$Case)
-    return $Case.Risk -eq 'low' -and $Case.WriteFiles -le 3 -and
+    return $Case.Risk -eq 'low' -and $Case.WriteFiles -le 6 -and
         $Case.DeterministicChecks -and -not $Case.SensitiveDecision -and
         -not $Case.ExternalEffect -and -not $Case.HumanGate -and $Case.BaseCommitMatches
 }
@@ -190,8 +212,8 @@ function Test-BoundedWriteEligibility {
 $codingCases = @(
     [pscustomobject]@{ Name='read-only-recon'; Mode='read-only'; Risk='low'; WriteFiles=0; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='efficient-read' },
     [pscustomobject]@{ Name='quick-one-file'; Mode='quick'; Risk='low'; WriteFiles=1; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='bounded-write' },
-    [pscustomobject]@{ Name='bounded-standard'; Mode='standard'; Risk='low'; WriteFiles=3; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='bounded-write' },
-    [pscustomobject]@{ Name='four-files'; Mode='standard'; Risk='low'; WriteFiles=4; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='standard-write' },
+    [pscustomobject]@{ Name='bounded-standard'; Mode='standard'; Risk='low'; WriteFiles=6; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='bounded-write' },
+    [pscustomobject]@{ Name='seven-files'; Mode='standard'; Risk='low'; WriteFiles=7; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='standard-write' },
     [pscustomobject]@{ Name='security-change'; Mode='standard'; Risk='low'; WriteFiles=1; DeterministicChecks=$true; SensitiveDecision=$true; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$true; Expected='standard-write' },
     [pscustomobject]@{ Name='base-mismatch'; Mode='standard'; Risk='low'; WriteFiles=1; DeterministicChecks=$true; SensitiveDecision=$false; ExternalEffect=$false; HumanGate=$false; BaseCommitMatches=$false; Expected='standard-write' },
     [pscustomobject]@{ Name='critical-decision'; Mode='critical-decision'; Risk='critical'; WriteFiles=0; DeterministicChecks=$false; SensitiveDecision=$true; ExternalEffect=$false; HumanGate=$true; BaseCommitMatches=$true; Expected='deep-decision' }

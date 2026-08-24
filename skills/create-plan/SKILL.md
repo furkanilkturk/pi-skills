@@ -28,7 +28,7 @@ Map the canonical task mode to Pi by capability:
   mechanical, low-risk, reversible change that stays in one file and has an
   exact check.
 - **Bounded low-risk Standard:** `bounded-write` may execute when the plan has an
-  exact write set of at most three files, no architecture/auth/security/data
+  exact cohesive write set of at most six files, no architecture/auth/security/data
   migration/concurrency decision, no external effect beyond `none` or
   `local-build`, no human gate, and deterministic checks. `fresh-review` is
   still required.
@@ -52,6 +52,17 @@ scout merely because discovery is read-only.
 
 ## Workflow
 
+0. Decide whether a **new** plan adds execution value before doing lineage or
+   repository reconnaissance. Risk controls the strength of gates; it does not
+   determine plan length. Reuse the existing approved plan and append one exact
+   log event when the request is only its commit, push, build, release evidence,
+   review, or `update-project` closeout. Do not create a successor plan merely
+   to perform already-scoped terminal operations. Create a new plan when the
+   user explicitly asks for one, the implementation scope is new, an unresolved
+   decision changes the approach, independent writers need a handoff contract,
+   or work has a genuinely separate acceptance boundary. A known Critical
+   external action may need a concise gate/checklist; Critical alone never
+   requires a large plan or step packets.
 1. Identify the company and project folder
    `wiki/projects/<Company>/<Project>/` (ask if unclear).
 2. Read `index.md` + `rules.md`, then only `Current State` and `Open Questions`
@@ -94,6 +105,22 @@ scout merely because discovery is read-only.
    Use `adaptive` only after explicit user selection or approval and record that
    approval in the plan `log.md`. The Pi host maps an eligible executor through
    its local routing profile; keep model or provider names out of the plan.
+   Choose the smallest package before writing: Quick work has no plan;
+   Compact Standard/Critical uses only `index.md` + `log.md` with inline steps.
+   Set `plan_shape: compact`. A user approval that covers a bounded sequence is
+   recorded once and referenced by its later external steps; do not turn it into
+   repeated approval prompts. Packetized plans set `plan_shape: packetized`, add
+   `packetization_reason`, and create `steps/` only for meaningful parallel or
+   independent writer handoffs, or when unique step instructions cannot fit a
+   compact active context. Human/external gates stay inline and do not by
+   themselves justify packets. Add `recon.md` only when at least two steps reuse
+   its evidence and the shared file removes material duplication. Do not create
+   speculative packets, repeat canonical policy, list every forbidden command,
+   or restate the same base/hash/path manifest in multiple files.
+   If this is the project's first plan and `plans/Plans.base` is absent, create
+   it from `wiki/projects/_templates/Plans.base` with the exact project plans
+   folder substituted. The Base is an optional human dashboard; Markdown
+   frontmatter remains canonical.
 6. Before readiness, run the vault's plan validator when available (for the
    bundled vault, `scripts/vault-lint.ps1`). At minimum verify inside the actual
    `Relevant History` section that `history_check`, valid `history_scan`, exact
@@ -102,6 +129,14 @@ scout merely because discovery is read-only.
    evidence label is not validation; keep the plan `draft` or `blocked` on any
    mismatch.
 7. Set plan frontmatter `status: ready` only after validation and user approval.
+   If this approved plan explicitly replaces a blocked predecessor, then—and
+   only then—set that predecessor to `status: superseded`, remove its stale
+   blocker fields, and add an exact `superseded_by` plan link. A draft successor
+   never changes its predecessor. A deliberately abandoned plan uses
+   `status: cancelled` plus `cancelled_reason`; do not overload `blocked`.
+   `plan_shape: archived` is migration-only for bulky closed historical plans;
+   never create a draft/ready/in-progress/blocked plan as archived and never
+   rewrite or delete its evidence merely to make history shorter.
 
 ## Executability Rules
 
@@ -135,10 +170,13 @@ it:
 - **Plan directory** — every plan is `plans/<slug>/index.md`; never create a
   sibling `plans/<slug>.md`. Keep current controls and the active-step summary
   in `index.md`; append execution evidence, approvals, deviations, and review
-  results to `plans/<slug>/log.md`. Put shared reconnaissance in `recon.md` and
-  executable work in `steps/<nn>-<slug>.md`. Do not copy historical log entries
-  back into the index or packets.
-- **Step packets** — create only the packets the dependency frontier requires.
+  results to `plans/<slug>/log.md`. `recon.md` and
+  `steps/<nn>-<slug>.md` are optional packetization tools, not default
+  scaffolding. Do not copy historical log entries back into the index or packets.
+- **Step packets** — create only the packets a meaningful parallel/independent
+  writer handoff or material active-context reduction requires. Compact
+  sequential plans—including Critical release checklists—keep steps inline; do
+  not create a packet merely because a step or external gate exists.
   Keep the index compact: its `Current Execution` section names the active
   step, next action, last verified HEAD, and one exact `log.md` event link.
   Load only the active packet. Repeat exact reads,
@@ -196,10 +234,18 @@ for a step, split the step or ask the user.
 
 Follow canonical **Planning and Execution** and **Task Modes** (including
 **Efficiency**) in `wiki/projects/Work Context System.md`; do not restate them in
-the plan.
+the plan. There is no default step count. A compact plan should normally fit in
+roughly 20–80 index lines and one pass of the executor; this is a guardrail, not
+a quota. If planning prose, duplicated manifests, or packet scaffolding becomes
+comparable to the implementation, stop and simplify. Generic execution rules
+belong in the skill/policy, not in every plan.
 
 ## After Creating
 
+- Human-visible plan-log event headings use local `DD.MM.YYYY HH:mm — Title`
+  and a stable `^event-YYYYMMDD-HHmm-slug` block ID. Keep frontmatter
+  `created`/`updated` machine-sortable as `YYYY-MM-DD`; do not rename legacy
+  event headings because existing wikilinks may target them.
 - Append one line to the project `log.md` Build Log: plan created, path, goal.
   If this takes `log.md` past about 300 lines, move the oldest Build Log entries
   only to `archive/log-YYYY.md`; never archive Current State/Open Questions or

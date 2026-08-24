@@ -19,7 +19,7 @@ if (-not (Test-Path -LiteralPath $AuditPath -PathType Leaf)) {
 
 Get-Content -LiteralPath $AuditPath -Tail $Count |
     ForEach-Object { $_ | ConvertFrom-Json } |
-    Select-Object timestamp,
+    Select-Object @{ Name = 'time'; Expression = { ([DateTimeOffset]$_.timestamp).ToLocalTime().ToString('dd.MM.yyyy HH:mm') } },
         @{ Name = 'runId'; Expression = { if ($_.PSObject.Properties['run_id']) { $_.run_id } else { $_.runId } } },
         profile, capability, agent, model,
         @{ Name = 'selectionSource'; Expression = { if ($_.PSObject.Properties['selection_source']) { $_.selection_source } else { $_.selectionSource } } },

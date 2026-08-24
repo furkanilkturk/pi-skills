@@ -60,9 +60,36 @@ export function normalizeEvidenceLabel(value) {
     .replace(/-+/g, "-");
 }
 
+function cleanContractField(value, limit = 240) {
+  if (!value) return undefined;
+  const cleaned = String(value)
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned ? cleaned.slice(0, limit) : undefined;
+}
+
+export function parseBlockedDetails(output) {
+  const field = (name) => cleanContractField(
+    String(output).match(new RegExp(`^${name}:\\s*(.+)$`, "mi"))?.[1],
+  );
+  return {
+    blockedStep: field("METONIA_BLOCKED_STEP"),
+    blocker: field("METONIA_BLOCKER"),
+    resumeWhen: field("METONIA_RESUME_WHEN"),
+  };
+}
+
 export function validateResult(output, evidence) {
   if (/^METONIA_RESULT:\s*BLOCKED\s*$/mi.test(output)) {
-    return { ok: false, status: "blocked", reason: "child reported BLOCKED", reasonCode: "child-blocked" };
+    const blocked = parseBlockedDetails(output);
+    return {
+      ok: false,
+      status: "blocked",
+      reason: blocked.blocker ?? "child reported BLOCKED without a structured explanation",
+      reasonCode: "child-blocked",
+      ...blocked,
+    };
   }
   if (!/^METONIA_RESULT:\s*PASS\s*$/mi.test(output)) {
     return {

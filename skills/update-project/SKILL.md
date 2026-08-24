@@ -118,6 +118,10 @@ phase, never as extra work for coding workers:
    record, make no other project/concept edits and report
    `Learning harvest: none`.
 
+Use local `DD.MM.YYYY HH:mm` for new human-visible Build Log and event text;
+keep frontmatter `created`/`updated` as `YYYY-MM-DD` and repository/audit
+timestamps as ISO. Never rename historical headings just to normalize format.
+
 This closes the forward loop for later planners without adding execution-time
 context: `create-plan` performs the bounded reverse lookup, while executors open
 only history explicitly named by their active packet.

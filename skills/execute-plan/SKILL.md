@@ -21,7 +21,7 @@ memory, or unstated repo knowledge. The plan, its named files, and the current
 working tree are the complete fresh-context handoff.
 
 Use `standard-write` unless **all** bounded-write fast-lane conditions hold:
-`risk: low`; at most three files in the complete write set; exact deterministic
+`risk: low`; at most six files in one cohesive write set; exact deterministic
 checks; no architecture, auth, security, privacy, migration, concurrency, or
 hard-to-reverse decision; every effect is `none` or `local-build`; every human
 gate is `none`; and the base commit matches.
@@ -99,6 +99,10 @@ selects the parent session; record that exception in the plan.
 1. Find the plan: the user gives a path, or list
    `wiki/projects/<Company>/<Project>/plans/*/index.md` and ask. A sibling
    `plans/<slug>.md` is a legacy collision and must be migrated before running.
+   `plan_shape: archived` is closed historical evidence, not an executable
+   package; do not load its recon/steps or resume it. New scope needs a new
+   compact/packetized plan, while an incorrect lifecycle classification must be
+   corrected explicitly before execution.
 2. Read the compact plan index fully once, project `rules.md`, and only
    **Planning and Execution** and **Efficiency** in
    `wiki/projects/Work Context System.md`. Do not read anything else yet. Treat
@@ -127,6 +131,11 @@ selects the parent session; record that exception in the plan.
    otherwise block and request that approval before implementation writes.
 4. Set plan frontmatter `status: in-progress`.
 5. For each step with `status: todo`, in order:
+   - resolve its human gate once: when an exact plan-log approval already covers
+     the bounded sequence and `Current Execution` links that event, treat the
+     named actions as approved without asking again at every commit/push/build
+     step. Approval never authorizes a retry, wider scope, or another external
+     action;
    - set step `doing`;
    - load its packet when declared, then read only the files that packet/step names;
    - make exactly the change described, never making implementation writes
@@ -143,7 +152,9 @@ selects the parent session; record that exception in the plan.
      set the step `status: blocked`, append the exact error/evidence to plan
      `log.md`, set plan `status: blocked` with `blocked_reason:` and
      `resume_when:`, link that event from `Current Execution`, then stop and
-     report.
+     report `METONIA_BLOCKED_STEP`, a short redacted `METONIA_BLOCKER`, and
+     exact `METONIA_RESUME_WHEN`. Do not expose secrets, absolute paths, raw
+     stderr, or stack traces in those human status fields.
    For an authorized parallel group, the parent applies this state machine to
    every meaningful ready member while each child is limited to its assigned
    step; read-only roles use no worktrees, while each writer gets one isolated
@@ -167,6 +178,9 @@ selects the parent session; record that exception in the plan.
      then resume.
 7. Never skip or reorder steps. Adaptive changes the amendment procedure, not
    the permission to make off-plan writes.
+   Do not create a new plan during execution merely to perform an already
+   approved commit, push, build, review, or `update-project` closeout. Append
+   evidence to the current plan log. A genuinely new scope returns to planning.
 8. When all steps are done:
    - read only the project index's **Commands** section, then run its full
      verification (lint/check/test);
@@ -207,6 +221,11 @@ context; `Current Execution`, the active packet, and at most one exact linked
 event are the resume packet. If you feel the urge to browse the repo "to
 understand", the plan is under-specified: strict mode blocks immediately;
 adaptive mode may use only the bounded read-only amendment procedure above.
+
+Human-visible plan-log event headings use local `DD.MM.YYYY HH:mm — Title`
+plus a stable `^event-YYYYMMDD-HHmm-slug` block ID. Keep frontmatter dates as
+`YYYY-MM-DD` and never rename legacy event headings merely to normalize time;
+existing resume/review links may target them.
 
 ## Resuming
 

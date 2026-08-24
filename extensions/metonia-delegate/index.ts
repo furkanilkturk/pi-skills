@@ -68,11 +68,35 @@ type RunDetails = {
 	stderr?: string;
 	auditError?: string;
 	failureReason?: string;
+	blockedStep?: string;
+	blocker?: string;
+	resumeWhen?: string;
 };
 
 function shortModel(model?: string): string {
 	if (!model) return "selecting model";
 	return model;
+}
+
+function localTime(value: number | Date = Date.now()): string {
+	const date = value instanceof Date ? value : new Date(value);
+	const pad = (part: number) => String(part).padStart(2, "0");
+	return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function runLines(run: any, theme?: ExtensionContext["ui"]["theme"]): string[] {
+	const passed = run.status === "passed";
+	const markerText = passed ? "✓ done" : `! ${run.status}`;
+	const marker = theme
+		? theme.fg(passed ? "success" : "warning", markerText)
+		: markerText;
+	const lines = [`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)} · ${localTime(run.finishedAt)}`];
+	if (!passed) {
+		const step = run.blockedStep ? `${run.blockedStep} · ` : "";
+		lines.push(`  ↳ ${step}${run.blocker ?? run.failureReason ?? "No structured blocker was reported."}`);
+		if (run.resumeWhen) lines.push(`    resume: ${run.resumeWhen}`);
+	}
+	return lines;
 }
 
 function renderRunTracker(ctx: ExtensionContext): void {
@@ -97,10 +121,7 @@ function renderRunTracker(ctx: ExtensionContext): void {
 		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}`);
 	}
 	for (const run of snapshot.recent.slice(0, snapshot.active.length > 0 ? 2 : 4)) {
-		const passed = run.status === "passed";
-		const marker = passed ? ctx.ui.theme.fg("success", "✓ done") : ctx.ui.theme.fg("warning", `! ${run.status}`);
-		const reason = !passed && run.failureReason ? ` · ${run.failureReason}` : "";
-		lines.push(`${marker}  ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}${reason}`);
+		lines.push(...runLines(run, ctx.ui.theme));
 	}
 	ctx.ui.setWidget("metonia-agents", lines, { placement: "aboveEditor" });
 
@@ -113,7 +134,7 @@ function renderRunTracker(ctx: ExtensionContext): void {
 			} finally {
 				widgetClearTimer = undefined;
 			}
-		}, 8000);
+		}, 20_000);
 		widgetClearTimer.unref?.();
 	}
 }
@@ -172,9 +193,13 @@ function outputContract(agent: string, capability: string, criteria: string[], e
 		...criteria.map((item) => `- ${item}`),
 		"Required evidence:",
 		...evidence.map((item) => `- ${item}`),
-		"End the final response with exactly one status line followed by an evidence section:",
+		"End the final response with exactly one status block:",
 		"METONIA_RESULT: PASS",
 		"or METONIA_RESULT: BLOCKED",
+		"When BLOCKED, put these three single-line, redacted fields immediately after the status:",
+		"METONIA_BLOCKED_STEP: <step, gate, or task area>",
+		"METONIA_BLOCKER: <specific human-readable reason; no secrets, paths, stderr, or stack traces>",
+		"METONIA_RESUME_WHEN: <exact condition that permits progress>",
 		"METONIA_EVIDENCE:",
 		...evidence.map((item) => `- ${item}: <result>`),
 		"Use those exact evidence labels. Do not rename, translate, merge, or omit them.",
@@ -220,6 +245,22 @@ const Parameters = Type.Object({
 
 export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 	if (process.env.METONIA_DELEGATE_CHILD === "1") return;
+
+	pi.registerCommand("metonia-status", {
+		description: "Show active and recent Metonia agent runs with blocker details",
+		handler: async (_args, ctx) => {
+			const snapshot = runTracker.snapshot();
+			if (snapshot.active.length === 0 && snapshot.recent.length === 0) {
+				ctx.ui.notify("No Metonia agent runs in this session.", "info");
+				return;
+			}
+			const lines = [`Metonia agents: ${snapshot.running} running · ${snapshot.queued} queued · ${snapshot.completed} done · ${snapshot.issues} issues`];
+			for (const run of snapshot.active) lines.push(`● ${run.phase} · ${run.agent ?? "broker"} · ${run.capability} · ${shortModel(run.model)}`);
+			for (const run of snapshot.recent) lines.push(...runLines(run));
+			ctx.ui.notify(lines.join("\n"), snapshot.issues > 0 ? "warning" : "info");
+			renderRunTracker(ctx);
+		},
+	});
 
 	pi.registerTool({
 		name: "metonia_delegate",
@@ -403,6 +444,9 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				} else {
 					details.status = contract.status;
 					details.failureReason = contract.reasonCode;
+					details.blockedStep = contract.blockedStep;
+					details.blocker = contract.blocker;
+					details.resumeWhen = contract.resumeWhen;
 				}
 				details.auditError = appendAudit(details, params.task);
 
@@ -410,7 +454,14 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 				const diagnostic = details.failureReason === contract.reasonCode
 					? contract.reason
 					: details.stderr ?? contract.reason ?? details.status;
-				const prefix = ok ? "" : `[${details.failureReason ?? "unknown"}] ${diagnostic}\n\n`;
+				const blockerLines = details.blocker
+					? [`step: ${details.blockedStep ?? "unspecified"}`, `blocker: ${details.blocker}`, `resume: ${details.resumeWhen ?? "unspecified"}`]
+					: [];
+				const prefix = ok
+					? ""
+					: details.blocker
+						? `[${details.failureReason ?? "child-blocked"}] ${localTime()}\n${blockerLines.join("\n")}\n\n`
+						: `[${details.failureReason ?? "unknown"}] ${localTime()} · ${diagnostic}\n\n`;
 				return {
 					content: [{ type: "text", text: `${prefix}${output || stderr || "(no child output)"}`.slice(0, OUTPUT_LIMIT) }],
 					details,
@@ -432,6 +483,9 @@ export default function registerMetoniaDelegate(pi: ExtensionAPI): void {
 					agent: details?.agent,
 					model: details?.model,
 					failureReason: details?.failureReason,
+					blockedStep: details?.blockedStep,
+					blocker: details?.blocker,
+					resumeWhen: details?.resumeWhen,
 				});
 				renderRunTracker(ctx);
 			}

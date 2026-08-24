@@ -15,6 +15,7 @@ import {
   buildChildTransport,
   classifyRuntimeFailure,
   normalizeEvidenceLabel,
+  parseBlockedDetails,
   safeFailureReason,
   selectSkillCandidate,
   sha256,
@@ -83,6 +84,8 @@ const auditDetails = {
   availableModelCount: 2,
   candidateIndex: 0,
   failureReason: "contract-missing-evidence",
+  blocker: "private blocker",
+  resumeWhen: "private resume condition",
   stderr: "private stderr",
   brokerError: "private broker diagnostic",
 };
@@ -100,10 +103,13 @@ for (const prohibited of ["cwd", "stderr", "brokerError", "auditError"]) {
 assert.equal(JSON.stringify(audit).includes("private-user"), false);
 assert.equal(JSON.stringify(audit).includes("private stderr"), false);
 assert.equal(JSON.stringify(audit).includes("private broker diagnostic"), false);
+assert.equal(JSON.stringify(audit).includes("private blocker"), false);
 assert.ok(runtimeSource.includes("collectReviewContext"), "fresh review must support automatic Git context");
 assert.ok(runtimeSource.includes("VAULT_WRITER_SKILLS"), "runtime must distinguish shared-vault writers");
 assert.ok(runtimeSource.includes("assertVaultRoot(cwd)"), "shared-vault writers must lock from the vault root");
 assert.ok(runtimeSource.includes("Re-read every target vault file"), "vault writer contract must defend concurrent sections");
+assert.ok(runtimeSource.includes('registerCommand("metonia-status"'), "runtime must expose recent blocker details on demand");
+assert.ok(runtimeSource.includes("METONIA_BLOCKER"), "child contract must require a human-readable blocker");
 assert.ok(
   runtimeSource.indexOf('source: "bundled"') < runtimeSource.indexOf('source: "global"'),
   "bundled skill candidates must precede global candidates",
@@ -143,6 +149,24 @@ assert.equal(
   validateResult("METONIA_RESULT: BLOCKED\nMETONIA_EVIDENCE:\n- blocker: reason", ["blocker"]).reasonCode,
   "child-blocked",
 );
+const structuredBlock = validateResult([
+  "METONIA_RESULT: BLOCKED",
+  "METONIA_BLOCKED_STEP: Step 2",
+  "METONIA_BLOCKER: Payload contract changed.\u0007 " + "x".repeat(300),
+  "METONIA_RESUME_WHEN: Approve the bounded contract amendment.",
+  "METONIA_EVIDENCE:",
+  "- blocker: typecheck output",
+].join("\n"), ["blocker"]);
+assert.equal(structuredBlock.status, "blocked");
+assert.equal(structuredBlock.blockedStep, "Step 2");
+assert.equal(structuredBlock.blocker.includes("\u0007"), false);
+assert.equal(structuredBlock.blocker.length, 240);
+assert.equal(structuredBlock.resumeWhen, "Approve the bounded contract amendment.");
+assert.deepEqual(parseBlockedDetails("METONIA_BLOCKER: one-line reason\nMETONIA_RESUME_WHEN: rerun"), {
+  blockedStep: undefined,
+  blocker: "one-line reason",
+  resumeWhen: "rerun",
+});
 assert.equal(classifyRuntimeFailure({ code: "ENOENT" }), "spawn-command-not-found");
 assert.equal(classifyRuntimeFailure(new Error("another Metonia writer is active")), "writer-lock-conflict");
 assert.equal(classifyRuntimeFailure(new Error("vault writer requires cwd to be the Metonia vault root")), "vault-root-required");
@@ -166,12 +190,16 @@ assert.equal(trackerState.running, 1);
 assert.equal(trackerState.completed, 0);
 tracker.finish("running", "passed", {}, 3);
 tracker.finish("queued", "model-error", { agent: "scout", failureReason: "child-model-error" }, 4);
+tracker.queue("blocked", "standard-write", 5);
+tracker.finish("blocked", "blocked", { agent: "worker", failureReason: "child-blocked", blockedStep: "Step 2", blocker: "typecheck failed", resumeWhen: "approve repair" }, 6);
 trackerState = tracker.snapshot();
 assert.equal(trackerState.active.length, 0);
-assert.equal(trackerState.completed, 2);
-assert.equal(trackerState.issues, 1);
-assert.equal(trackerState.recent[0].status, "model-error");
-assert.equal(trackerState.recent[0].failureReason, "child-model-error");
+assert.equal(trackerState.completed, 3);
+assert.equal(trackerState.issues, 2);
+assert.equal(trackerState.recent[0].status, "blocked");
+assert.equal(trackerState.recent[0].blockedStep, "Step 2");
+assert.equal(trackerState.recent[0].blocker, "typecheck failed");
+assert.equal(trackerState.recent[0].resumeWhen, "approve repair");
 
 const adaptiveTracker = new RunTracker();
 for (let index = 0; index < 12; index++) {
@@ -289,8 +317,9 @@ const boundedCode = {
   baseCommitMatches: true,
 };
 assert.doesNotThrow(() => assertCapabilityControls("bounded-write", boundedCode));
+assert.doesNotThrow(() => assertCapabilityControls("bounded-write", { ...boundedCode, writeFiles: ["1", "2", "3", "4", "5", "6"] }));
 assert.throws(
-  () => assertCapabilityControls("bounded-write", { ...boundedCode, writeFiles: ["1", "2", "3", "4"] }),
+  () => assertCapabilityControls("bounded-write", { ...boundedCode, writeFiles: ["1", "2", "3", "4", "5", "6", "7"] }),
   /use standard-write/,
 );
 assert.throws(
