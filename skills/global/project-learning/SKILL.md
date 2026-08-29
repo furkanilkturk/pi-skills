@@ -1,6 +1,6 @@
 ---
 name: project-learning
-description: Register an existing or new Git project in Metonia, or propose evidence-backed updates to its Company.md and Project.md context; do not use for general document learning or implementation.
+description: Register or curate a Git project in Metonia with evidence-backed context capsules, engineering contracts, and reviewed decisions; do not use for general document learning or implementation.
 ---
 
 # Project Learning
@@ -13,11 +13,17 @@ code, tests, and review are complete. Never write or repair code.
 Resolve the Metonia vault from `METONIA_VAULT`. Stop if it is missing, invalid,
 or not a vault root; never search arbitrary parent or home directories for one.
 
+For a software repository in `register-existing` or `propose-update`, read
+[references/context-contract.md](references/context-contract.md) before
+inspecting it. That reference defines source precedence, compact context,
+pattern-conflict questions, and the durable improvement queue.
+
 ## Choose one mode
 
 - **register-existing:** inspect an existing Git repository, its normalized
-  remotes, README, architecture/configuration, and user-provided company facts;
-  then propose a new company/project mapping without changing the repository.
+  remotes, governing instructions, architecture/configuration, representative
+  implementation/tests, and user-provided company facts; then propose a new
+  company/project mapping without changing the repository.
 - **register-new:** create the company/project note skeleton for a newly
   created repository after its name, owner, canonical remote, outcome, and
   boundaries are known.
@@ -49,23 +55,35 @@ curation workflow.
 
 ## Curate with approval
 
-1. Inspect the initial and follow-up requirements, explicit prohibitions and
-   questions, final diff/repository state, tests, reviewer findings, and open
-   risks. Separate evidence, interpretation, and proposed durable fact.
-2. Classify each candidate as task-only, project rule, company rule, general
-   concept, privacy rule, rejected alternative, or open question. Discard task
-   status, worktree paths, tool logs, token dumps, and chat transcript.
+1. Separate evidence, observed implementation, normative rule, intended plan,
+   interpretation, and user-approved decision. A dependency name without its
+   usage boundary is inventory, not useful context.
+2. Classify each candidate as context-capsule contract, project rule, company
+   rule, decision, durable improvement, optional detail, or discard. Exclude
+   transient milestones, passing-test counts, worktree paths, tool logs, token
+   dumps, and chat transcript.
 3. Decide ownership: company-wide operating knowledge belongs in `Company.md`;
    repository-specific purpose, architecture, constraints, and decisions belong
    in `Project.md` or its linked project notes.
-4. Show a proposal with target paths, exact writes, evidence, confidence, and any
-   conflict with accepted context.
-5. Write only after user approval unless the current request explicitly approves
-   those exact facts and files. Registration approval must cover the company,
-   project name, canonical remote, and every target path.
-6. Preserve disagreement and supersession history; do not silently overwrite an
-   accepted decision.
-7. Report the resulting company→project links and unresolved questions.
+4. When accepted context and material evidence disagree without an explicit
+   authority rule, stop at the highest-consequence conflict. Use
+   `metonia-interview` when available to ask one selectable decision with a
+   recommendation, evidence, and consequences. The choices must allow keeping
+   the accepted rule, adopting/superseding it, or deferring it as an open
+   improvement. Never infer the answer from majority code style alone.
+5. Show a proposal with target paths, exact writes, evidence, confidence,
+   freshness, and any conflict or unresolved improvement.
+6. Write only after user approval unless the current request explicitly approves
+   those exact facts and files. Approve the identity mapping and engineering
+   capsule separately: accepting the company, project, remote, or target paths
+   does not accept inferred engineering claims.
+7. Immediately before writing, recheck repository HEAD/dirty paths and target
+   note fingerprints shown in the proposal. If they changed, refresh the
+   proposal; do not consume stale approval.
+8. Preserve stable decision/improvement IDs, disagreement, and supersession;
+   never silently overwrite an accepted decision or duplicate the same finding.
+9. Report the company→project links, capsule freshness, optional context index,
+   and unresolved improvements that later planning must consider.
 
 Capture how the company actually works: mission and customers, domain language,
 decision and approval paths, delivery/release/quality practices, privacy and
