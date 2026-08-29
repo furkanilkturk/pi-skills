@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import registerTaskAgents from "../extensions/task-agents/index.ts";
+import registerTaskAgents, { buildTaskContract } from "../extensions/task-agents/index.ts";
 import { detectMetoniaSpace } from "../extensions/metonia-context/index.ts";
 import registerMetoniaInterview, { orderMetoniaOptions } from "../extensions/metonia-interview/index.ts";
 import { installPack } from "../scripts/install-pack.mjs";
@@ -18,7 +18,14 @@ import {
 	resolveMetoniaContext,
 } from "../src/context-resolver.ts";
 import { routeModel } from "../src/model-router.ts";
-import { buildPiChildArgs, parseTaskStatusFooter } from "../src/task-process.ts";
+import {
+	buildPiChildArgs,
+	clipUtf8,
+	findBudgetViolation,
+	parseTaskStatusFooter,
+	runPiChild,
+	truncateUtf8Prefix,
+} from "../src/task-process.ts";
 import { finalizeWorktree, prepareWorktree } from "../src/worktree.ts";
 
 const exec = promisify(execFile);
@@ -29,11 +36,12 @@ function model(options: {
 	contextWindow: number;
 	maxTokens: number;
 	price: number;
+	provider?: string;
 }): Model<Api> {
 	return {
 		id: options.id,
 		name: options.id,
-		provider: "test" as Model<Api>["provider"],
+		provider: (options.provider ?? "test") as Model<Api>["provider"],
 		api: "openai-responses",
 		baseUrl: "https://example.test",
 		reasoning: options.reasoning,
@@ -55,7 +63,7 @@ test("normalizes common Git remote spellings", () => {
 	assert.equal(normalizeGitRemote("ssh://git@github.com/acme/app.git"), "github.com/acme/app");
 });
 
-test("routes model classes by metadata and honors exact override", () => {
+test("routes efficient work by price and honors ordered quality policy or exact override", () => {
 	const models = [
 		model({ id: "economy", reasoning: false, contextWindow: 128_000, maxTokens: 8_000, price: 0.2 }),
 		model({ id: "middle", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
@@ -66,7 +74,12 @@ test("routes model classes by metadata and honors exact override", () => {
 		"economy",
 	);
 	assert.equal(
-		routeModel(models, { complexity: "deep", priority: "quality", estimatedContextTokens: 200_000 }).model.id,
+		routeModel(models, {
+			complexity: "deep",
+			priority: "quality",
+			estimatedContextTokens: 200_000,
+			modelCandidates: ["test/depth", "test/middle"],
+		}).model.id,
 		"depth",
 	);
 	assert.equal(
@@ -80,12 +93,198 @@ test("routes model classes by metadata and honors exact override", () => {
 	);
 });
 
-test("deep routing prefers an equally capable current reasoning model or requests an override", () => {
+test("quality routing keeps an eligible current model and otherwise stays deterministic", () => {
 	const first = model({ id: "first", reasoning: true, contextWindow: 1_000_000, maxTokens: 128_000, price: 2 });
 	const current = model({ id: "current", reasoning: true, contextWindow: 1_000_000, maxTokens: 128_000, price: 2 });
 	const request = { complexity: "deep" as const, priority: "quality" as const, estimatedContextTokens: 100_000 };
 	assert.equal(routeModel([first, current], { ...request, currentModel: current }).model.id, "current");
-	assert.throws(() => routeModel([first, current], request), /explicit provider\/model override/);
+	const fallback = routeModel([first, current], request);
+	assert.equal(fallback.model.id, "current");
+	assert.match(fallback.limitation ?? "", /quality profile|modelCandidates/);
+});
+
+test("routing treats capacity as eligibility, preserves zero price, and enforces trust filters", () => {
+	const free = model({ id: "free", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 0, provider: "go" });
+	const huge = model({ id: "huge", reasoning: true, contextWindow: 1_000_000, maxTokens: 256_000, price: 4, provider: "other" });
+	assert.equal(
+		routeModel([huge, free], {
+			complexity: "standard",
+			priority: "balanced",
+			estimatedContextTokens: 20_000,
+		}).model.id,
+		"free",
+	);
+	assert.equal(
+		routeModel([huge, free], {
+			complexity: "light",
+			priority: "cost",
+			estimatedContextTokens: 1_000,
+			allowedProviders: ["go"],
+		}).model.id,
+		"free",
+	);
+	assert.throws(
+		() =>
+			routeModel([huge, free], {
+				complexity: "light",
+				priority: "cost",
+				estimatedContextTokens: 1_000,
+				allowedProviders: ["trusted-only"],
+			}),
+		/trust policy/,
+	);
+});
+
+test("ordered model candidates skip unavailable providers without changing declared order", () => {
+	const firstAvailable = model({ id: "first", reasoning: false, contextWindow: 256_000, maxTokens: 32_000, price: 2 });
+	const secondAvailable = model({ id: "second", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 });
+	const route = routeModel([secondAvailable, firstAvailable], {
+		complexity: "standard",
+		priority: "quality",
+		estimatedContextTokens: 10_000,
+		modelCandidates: ["missing/model", "test/first", "test/second"],
+	});
+	assert.equal(route.model.id, "first");
+	assert.match(route.limitation ?? "", /missing\/model/);
+});
+
+test("explicit model overrides preserve bypass semantics unless an output allowance is requested", () => {
+	const small = model({ id: "small", reasoning: false, contextWindow: 16_000, maxTokens: 1_000, price: 1 });
+	assert.equal(
+		routeModel([small], {
+			complexity: "deep",
+			priority: "quality",
+			estimatedContextTokens: 100_000,
+			modelOverride: "test/small",
+		}).model.id,
+		"small",
+	);
+	assert.throws(
+		() =>
+			routeModel([small], {
+				complexity: "deep",
+				priority: "quality",
+				estimatedContextTokens: 100_000,
+				expectedOutputTokens: 2_000,
+				modelOverride: "test/small",
+			}),
+		/does not fit/,
+	);
+});
+
+test("explicitly empty trust policies fail closed", () => {
+	const available = model({ id: "available", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 });
+	assert.throws(
+		() =>
+			routeModel([available], {
+				complexity: "standard",
+				priority: "balanced",
+				estimatedContextTokens: 1_000,
+				allowedProviders: [],
+			}),
+		/trust policy/,
+	);
+	assert.throws(
+		() =>
+			routeModel([available], {
+				complexity: "standard",
+				priority: "balanced",
+				estimatedContextTokens: 1_000,
+				allowedModels: ["   "],
+			}),
+		/trust policy/,
+	);
+});
+
+test("child usage budgets stop before an extra tool turn and after reported token/cost overruns", () => {
+	const usage = { input: 2_000, output: 500, cacheRead: 0, cacheWrite: 0, cost: 0.2, turns: 2 };
+	assert.equal(findBudgetViolation(usage, { maxTurns: 2, maxInputTokens: 2_000, maxCost: 0.2 }), undefined);
+	assert.match(findBudgetViolation(usage, { maxTurns: 2 }, "toolUse") ?? "", /before another tool round/);
+	assert.match(findBudgetViolation({ ...usage, turns: 3 }, { maxTurns: 2 }) ?? "", /turn limit/);
+	assert.match(findBudgetViolation({ ...usage, output: 501 }, { maxOutputTokens: 500 }) ?? "", /output-token/);
+});
+
+test("UTF-8 child output capture is bounded without splitting the returned byte budget", () => {
+	const clipped = clipUtf8("😀".repeat(200), 128);
+	assert.ok(Buffer.byteLength(clipped, "utf8") <= 128);
+	assert.match(clipped, /truncated/);
+	assert.ok(Buffer.byteLength(clipUtf8("oversized", 4), "utf8") <= 4);
+});
+
+test("large multibyte truncation remains bounded and avoids a quadratic scan", () => {
+	const source = "😀漢字".repeat(64 * 1024);
+	const started = Date.now();
+	const clipped = truncateUtf8Prefix(source, 256 * 1024);
+	assert.ok(Buffer.byteLength(clipped, "utf8") <= 256 * 1024);
+	assert.doesNotMatch(clipped, /[\uD800-\uDBFF]$/);
+	assert.ok(Date.now() - started < 2_000);
+});
+
+test("a final JSON event without a newline records a budget stop without a stale kill", async () => {
+	const event = JSON.stringify({
+		type: "message_end",
+		message: {
+			role: "assistant",
+			model: "fixture",
+			content: [{ type: "text", text: "finished" }],
+			stopReason: "stop",
+			usage: { input: 10, output: 11, cacheRead: 0, cacheWrite: 0, cost: { total: 0.01 } },
+		},
+	});
+	const result = await runPiChild(
+		{
+			cwd: process.cwd(),
+			task: "fixture",
+			model: "fixture/model",
+			thinking: "off",
+			timeoutSeconds: 30,
+			readOnly: true,
+			skills: [],
+			budget: { maxOutputTokens: 10 },
+		},
+		{ command: process.execPath, args: ["-e", `process.stdout.write(${JSON.stringify(event)})`] },
+	);
+	assert.equal(result.status, "aborted");
+	assert.equal(result.terminationReason, "budget");
+	assert.equal(result.output, "finished");
+	assert.equal(result.usage.output, 11);
+});
+
+test("an oversized no-newline child stream terminates with a structured output limit", async () => {
+	const result = await runPiChild(
+		{
+			cwd: process.cwd(),
+			task: "fixture",
+			model: "fixture/model",
+			thinking: "off",
+			timeoutSeconds: 30,
+			readOnly: true,
+			skills: [],
+		},
+		{
+			command: process.execPath,
+			args: ["-e", 'process.stdout.write("x".repeat(9 * 1024 * 1024)); setInterval(() => {}, 1000)'],
+		},
+	);
+	assert.equal(result.status, "aborted");
+	assert.equal(result.terminationReason, "output-limit");
+	assert.match(result.error ?? "", /JSON event|stdout/);
+});
+
+test("delegated task contracts keep deliverables, acceptance, and constraints explicit", () => {
+	const contract = buildTaskContract(
+		{
+			task: "Implement the bounded parser change.",
+			deliverable: "A tested parser patch.",
+			acceptanceCriteria: ["Existing tests pass", "New edge case is covered"],
+			constraints: ["Do not change the public API"],
+		},
+		"builder",
+	);
+	assert.match(contract, /^Role: builder/);
+	assert.match(contract, /Deliverable:\nA tested parser patch/);
+	assert.match(contract, /- Existing tests pass/);
+	assert.match(contract, /- Do not change the public API/);
 });
 
 test("parses a structured blocked child result", () => {
@@ -158,6 +357,60 @@ test("task extension marks a queued task aborted before routing or spawn", async
 	);
 	assert.equal(result.details.results[0].status, "aborted");
 	assert.match(result.details.results[0].error, /before this queued task started/);
+});
+
+test("caller context estimates cannot undercut the known delegated prompt size", async () => {
+	let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
+	registerTaskAgents({
+		registerCommand() {},
+		registerTool(tool: { execute: (...args: any[]) => Promise<any> }) {
+			registered = tool;
+		},
+	} as any);
+	assert.ok(registered);
+	const small = model({ id: "small", reasoning: false, contextWindow: 12_000, maxTokens: 8_000, price: 1 });
+	const result = await registered.execute(
+		"test",
+		{ task: "x".repeat(40_000), complexity: "light", estimatedContextTokens: 1 },
+		undefined,
+		undefined,
+		{
+			cwd: process.cwd(),
+			scopedModels: [],
+			modelRegistry: { getAvailable: () => [small] },
+			model: small,
+			thinkingLevel: "medium",
+		},
+	);
+	assert.equal(result.isError, true);
+	assert.match(result.details.results[0].error, /No allowed model fits/);
+});
+
+test("private Metonia context requires an explicit provider or model trust policy", async () => {
+	let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
+	registerTaskAgents({
+		registerCommand() {},
+		registerTool(tool: { execute: (...args: any[]) => Promise<any> }) {
+			registered = tool;
+		},
+	} as any);
+	assert.ok(registered);
+	const available = model({ id: "available", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 });
+	const result = await registered.execute(
+		"test",
+		{ task: "inspect private project context", includeMetoniaContext: true, model: "available" },
+		undefined,
+		undefined,
+		{
+			cwd: process.cwd(),
+			scopedModels: [],
+			modelRegistry: { getAvailable: () => [available] },
+			model: available,
+			thinkingLevel: "medium",
+		},
+	);
+	assert.equal(result.isError, true);
+	assert.match(result.details.results[0].error, /trust policy/);
 });
 
 test("task extension registers the subagent dashboard command", () => {

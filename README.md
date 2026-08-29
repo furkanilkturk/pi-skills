@@ -97,8 +97,10 @@ Unknown and ambiguous matches are errors.
 
 **Privacy:** invoking `metonia_context`, or setting
 `includeMetoniaContext: true` on `task_agents`, sends the matched notes to the
-selected model provider. Context injection is never automatic; opt in only when
-those private notes are appropriate for that provider and task.
+selected model provider. Context injection is never automatic. A delegated task
+that requests it must also declare an exact `model`, ordered `modelCandidates`,
+`allowedProviders`, or `allowedModels` trust policy; authentication alone does
+not make a provider appropriate for private company data.
 
 You can inspect the same result outside Pi:
 
@@ -114,22 +116,60 @@ node scripts/resolve-context.mjs --vault /path/to/vault --cwd /path/to/repositor
 separate `pi --mode json --no-session` process. The default concurrency ceiling
 is derived from logical CPUs and memory; set `METONIA_AGENT_MAX_CONCURRENCY` and
 `METONIA_AGENT_MAX_TASKS` to intentional positive bounds. This is local resource
-control, not a claim about provider capacity. Selection modes are:
+control, not a claim about provider capacity.
+
+The parent remains the default execution owner. It should delegate only when
+parallelism, context isolation, specialization, cost, or independent
+verification outweighs process and handoff overhead. A short or tightly coupled
+task stays with the parent. A clear low-risk task may go directly to one
+efficient child; there is no mandatory planner-builder-reviewer pipeline and no
+automatic retry or review-repair loop.
+
+Make delegated work independently verifiable with `deliverable`,
+`acceptanceCriteria`, and `constraints`. For example, a well-specified isolated
+task can use `complexity: "light"` with `priority: "cost"` without paying for a
+planning stage. Selection modes are:
 
 - `light`: favor the lowest static price among models that fit the estimated context;
-- `standard`: balance price, reasoning support, context, and output capacity;
-- `deep`: favor reasoning and headroom for hard or long tasks.
+- `standard`: favor an eligible reasoning-capable model, then static efficiency;
+- `deep`: require reasoning when available and retain the eligible current model
+  for `quality` unless an intentional model policy is supplied.
 
-These are model-class heuristics, not hardcoded product names. `model` always
-overrides routing. Pi does not expose live provider capacity or latency here;
-the `latency` priority uses static model cost as an efficiency proxy and the
-result says so.
+Context window and maximum output are eligibility limits, not intelligence
+scores. Pi has no empirical cross-provider quality ranking. Use ordered exact
+`provider/model` references in `modelCandidates` for a portable fallback policy,
+or `model` for one exact override. Candidate order is authoritative even for a
+`deep` task; reasoning metadata never silently reorders an explicit policy.
+`allowedProviders` and `allowedModels` are hard trust filters applied before
+routing, and an explicitly empty allowlist fails closed. No provider or product
+name is baked into the router. Pi does not expose live provider capacity or
+latency here; the `latency` priority uses static model cost only as an
+efficiency proxy and the result says so.
+
+A caller may provide `estimatedContextTokens`, but it cannot undercut the prompt
+and explicit skill content that the extension has already assembled. Automatic
+estimates add a complexity-based exploration allowance to that known lower
+bound.
+
+Optional per-child budgets—`maxTurns`, `maxInputTokens`, `maxOutputTokens`, and
+`maxCost`—are checked at assistant-turn boundaries. `maxTurns` stops before an
+additional tool round once the configured count is reached; token and cost
+limits stop after Pi receives a completed turn that crosses the bound. They are
+guardrails, not prepaid guarantees: a single provider turn can cross a limit
+before Pi receives its usage. Timeout, cancellation, budget, and output-limit
+termination remain distinguishable in structured results. Task count and
+concurrency are separate bounds. Child streams, individual captured answers,
+and model-visible combined output are byte-bounded. The combined response starts
+with a compact all-task status manifest before equally budgeted excerpts, so a
+large early answer cannot hide a later failed or blocked task. Bounded details
+remain available in `/agents`.
 
 While a run is active, Pi shows a compact contextual status and a bounded task
 widget. `/agents` opens the keyboard-driven run list, then reveals one task's
 model, route, blocker, error, and output. The same screen can cancel unfinished
-children. Completed detail stays collapsed until requested so ordinary coding
-sessions do not become a wall of status text.
+children. It also shows routing limitations and which context classes were sent.
+Completed detail stays collapsed until requested so ordinary coding sessions do
+not become a wall of status text.
 
 Parallel tasks must set `readOnly: true` or use `isolation: "worktree"`.
 Read-only children receive only Pi's read, grep, find, and list tools. Each child
