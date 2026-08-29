@@ -7,7 +7,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 export const PACKS = Object.freeze({
 	learning: ["doc-learning", "video-learning"],
-	work: ["project-learning"],
+	work: ["project-learning", "project-planning"],
 	video: ["video-research", "video-concept", "video-review"],
 });
 

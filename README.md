@@ -6,21 +6,24 @@ Scoped knowledge skills and small Pi extensions for the
 Metonia treats a focused folder as an **agent space**: `AGENTS.md` describes the
 space, while `.agents/skills/` contains only the capabilities that belong there.
 Opening Pi from a coding repository therefore does not load document-learning or
-video-production skills.
+video-production skills. Pi resolves this from its working directory, not from
+the file currently selected in Obsidian.
 
 ## What is included
 
 | Resource | Purpose | Loaded by the Pi package? |
 | --- | --- | --- |
 | `learning` pack | Documents and existing videos → source-backed knowledge | No |
-| `work` pack | Company → project context curation | No |
+| `work` pack | Company/project registration, context curation, and durable planning | No |
 | `video` pack | Research, concept development, and review | No |
 | `task_agents` | Isolated, bounded subagent dispatch with metadata-based model routing | Yes |
 | `metonia_context` | Resolve an external Git repository to its Company and Project notes | Yes |
+| `metonia-interview` | Small decision-interview workflow using Pi's question TUI | Yes |
+| `metonia-context` | Navigate agent spaces and durable-knowledge boundaries | Yes |
 
-The `skills: []` package manifest is intentional. Skills are copied into the
-agent space that owns them, so their names and descriptions do not consume every
-coding session's context.
+Only the two small routing skills are package-global. The seven domain skills
+are copied into the agent space that owns them, so learning, video, and Work
+instructions do not consume every coding session's context.
 
 ## Install the Pi extensions
 
@@ -31,8 +34,34 @@ your local user's permissions.
 pi install git:github.com/furkanilkturk/pi-skills
 ```
 
-The package installs the two extensions only. It does not change model or
-authentication settings and does not install skills globally.
+The package installs two extensions and the two lightweight global routing
+skills. It does not change model or authentication settings.
+
+For the selectable `metonia-interview` UI, install the maintained MIT-licensed
+Pi companion extension if it is not already present:
+
+```bash
+pi install npm:@juicesharp/rpiv-ask-user-question
+```
+
+The skill falls back to plain chat questions when the companion is absent. The
+TUI dependency remains separate so it can be upgraded independently rather than
+forked into this package.
+
+## See the current context
+
+Run `/metonia` in Pi. It shows the current agent space, every active skill
+command, and the Metonia tools available in that session. Typical discovery is:
+
+| Pi working directory | Domain skills added to the two global skills |
+| --- | --- |
+| External coding repository or vault root | None |
+| `Learning/` or a descendant | `doc-learning`, `video-learning` |
+| `Work/` or a company/project descendant | `project-learning`, `project-planning` |
+| `Studio/Video/` or a descendant | `video-research`, `video-concept`, `video-review` |
+
+Use `/skill:metonia-interview` for the Metonia-specific selectable interview
+and `/agents` for the subagent run dashboard.
 
 ## Install a scoped skill pack
 
@@ -50,7 +79,7 @@ To vendor all three packs into a Metonia template:
 node scripts/sync-metonia.mjs --template /path/to/metonia/template
 ```
 
-Only the six named skill directories are replaced. Unrelated skills in the
+Only the seven named domain skill directories are replaced. Unrelated skills in the
 target are preserved. The installer rejects targets that do not end in
 `.agents/skills`.
 
@@ -102,6 +131,12 @@ These are model-class heuristics, not hardcoded product names. `model` always
 overrides routing. Pi does not expose live provider capacity or latency here;
 the `latency` priority uses static model cost as an efficiency proxy and the
 result says so.
+
+While a run is active, Pi shows a compact contextual status and a bounded task
+widget. `/agents` opens the keyboard-driven run list, then reveals one task's
+model, route, blocker, error, and output. The same screen can cancel unfinished
+children. Completed detail stays collapsed until requested so ordinary coding
+sessions do not become a wall of status text.
 
 Parallel tasks must set `readOnly: true` or use `isolation: "worktree"`.
 Read-only children receive only Pi's read, grep, find, and list tools. Each child

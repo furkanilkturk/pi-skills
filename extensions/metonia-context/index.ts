@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, SlashCommandInfo } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
 	ContextResolutionError,
@@ -12,7 +12,78 @@ const Params = Type.Object({
 	vault: Type.Optional(Type.String({ description: "Metonia vault root; defaults to METONIA_VAULT" })),
 });
 
+export interface MetoniaSpace {
+	kind: "external" | "root" | "learning" | "work" | "video";
+	label: string;
+}
+
+function containedRelative(root: string, cwd: string): string | undefined {
+	const relative = path.relative(root, cwd);
+	if (relative === "") return "";
+	if (relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
+	return relative;
+}
+
+export function detectMetoniaSpace(cwd: string, vault?: string): MetoniaSpace {
+	if (!vault) return { kind: "external", label: "External repository" };
+	const vaultRoot = path.resolve(vault);
+	const roots = [path.join(vaultRoot, "template"), vaultRoot];
+	for (const root of roots) {
+		const relative = containedRelative(root, path.resolve(cwd));
+		if (relative === undefined) continue;
+		const segments = relative.split(path.sep).filter(Boolean);
+		if (segments.length === 0) return { kind: "root", label: "Vault root" };
+		if (segments[0].toLowerCase() === "learning") return { kind: "learning", label: "Learning" };
+		if (segments[0].toLowerCase() === "studio" && segments[1]?.toLowerCase() === "video") {
+			return { kind: "video", label: "Studio · Video" };
+		}
+		if (segments[0].toLowerCase() === "work") {
+			const company = segments[1]?.toLowerCase() === "companies" ? segments[2] : undefined;
+			const project = segments[3]?.toLowerCase() === "projects" ? segments[4] : undefined;
+			if (company && project) return { kind: "work", label: `Work · ${company} · ${project}` };
+			if (company) return { kind: "work", label: `Work · ${company}` };
+			return { kind: "work", label: "Work" };
+		}
+		return { kind: "root", label: "Vault · unscoped folder" };
+	}
+	return { kind: "external", label: "External repository" };
+}
+
+function commandRow(command: SlashCommandInfo): string {
+	const description = command.description ? ` — ${command.description}` : "";
+	return `Skill  /${command.name}${description}`;
+}
+
 export default function metoniaContext(pi: ExtensionAPI) {
+	pi.on("session_start", (_event, ctx) => {
+		const space = detectMetoniaSpace(ctx.cwd, process.env.METONIA_VAULT);
+		ctx.ui.setStatus("metonia-space", ctx.ui.theme.fg("accent", `Metonia: ${space.label}`));
+	});
+
+	pi.registerCommand("metonia", {
+		description: "Show the current Metonia agent space and active Pi skills",
+		handler: async (_args, ctx) => {
+			if (!ctx.hasUI) {
+				ctx.ui.notify("/metonia requires an interactive UI.", "warning");
+				return;
+			}
+			const space = detectMetoniaSpace(ctx.cwd, process.env.METONIA_VAULT);
+			const skills = pi.getCommands().filter((command) => command.source === "skill");
+			const rows = [
+				`Context  ${space.label}`,
+				...skills.map(commandRow),
+				"Command /agents — subagent runs, results, and cancellation",
+				"Tool    metonia_context — explicit company/project context lookup",
+				"Tool    task_agents — bounded isolated delegation",
+			];
+			const selected = await ctx.ui.select(`Metonia · ${skills.length} active skill command(s)`, rows);
+			if (!selected?.startsWith("Skill  /")) return;
+			const commandName = selected.slice("Skill  /".length).split(" — ", 1)[0];
+			const command = skills.find((entry) => entry.name === commandName);
+			if (command?.sourceInfo.path) ctx.ui.notify(command.sourceInfo.path, "info");
+		},
+	});
+
 	pi.registerTool({
 		name: "metonia_context",
 		label: "Metonia Context",

@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import registerTaskAgents from "../extensions/task-agents/index.ts";
+import { detectMetoniaSpace } from "../extensions/metonia-context/index.ts";
 import { installPack } from "../scripts/install-pack.mjs";
 import { syncMetonia } from "../scripts/sync-metonia.mjs";
 import {
@@ -119,6 +120,7 @@ test("child arguments disable skills by default and add only the explicit allowl
 test("task extension rejects parallel writers sharing a checkout", async () => {
 	let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
 	registerTaskAgents({
+		registerCommand() {},
 		registerTool(tool: { execute: (...args: any[]) => Promise<any> }) {
 			registered = tool;
 		},
@@ -138,6 +140,7 @@ test("task extension rejects parallel writers sharing a checkout", async () => {
 test("task extension marks a queued task aborted before routing or spawn", async () => {
 	let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
 	registerTaskAgents({
+		registerCommand() {},
 		registerTool(tool: { execute: (...args: any[]) => Promise<any> }) {
 			registered = tool;
 		},
@@ -154,6 +157,35 @@ test("task extension marks a queued task aborted before routing or spawn", async
 	);
 	assert.equal(result.details.results[0].status, "aborted");
 	assert.match(result.details.results[0].error, /before this queued task started/);
+});
+
+test("task extension registers the subagent dashboard command", () => {
+	const commands: string[] = [];
+	registerTaskAgents({
+		registerCommand(name: string) {
+			commands.push(name);
+		},
+		registerTool() {},
+	} as any);
+	assert.deepEqual(commands, ["agents"]);
+});
+
+test("detects Metonia agent spaces from the Pi working directory", () => {
+	const vault = path.resolve("C:/vault");
+	assert.deepEqual(detectMetoniaSpace(path.join(vault, "Learning", "Courses"), vault), {
+		kind: "learning",
+		label: "Learning",
+	});
+	assert.deepEqual(
+		detectMetoniaSpace(path.join(vault, "Work", "Companies", "Acme", "Projects", "App"), vault),
+		{ kind: "work", label: "Work · Acme · App" },
+	);
+	assert.deepEqual(detectMetoniaSpace(path.join(vault, "Studio", "Video", "Concepts"), vault), {
+		kind: "video",
+		label: "Studio · Video",
+	});
+	assert.equal(detectMetoniaSpace(path.join(vault, "template", "Learning"), vault).kind, "learning");
+	assert.equal(detectMetoniaSpace(path.resolve("C:/elsewhere"), vault).kind, "external");
 });
 
 test("resolver returns only the uniquely matched company and project", async (t) => {
@@ -249,6 +281,7 @@ test("Metonia sync targets the three agent-space skill directories", async (t) =
 		"Learning/.agents/skills/doc-learning/SKILL.md",
 		"Learning/.agents/skills/video-learning/SKILL.md",
 		"Work/.agents/skills/project-learning/SKILL.md",
+		"Work/.agents/skills/project-planning/SKILL.md",
 		"Studio/Video/.agents/skills/video-research/SKILL.md",
 		"Studio/Video/.agents/skills/video-concept/SKILL.md",
 		"Studio/Video/.agents/skills/video-review/SKILL.md",

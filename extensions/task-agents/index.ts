@@ -3,7 +3,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { StringEnum } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { formatContextData, resolveMetoniaContext } from "../../src/context-resolver.ts";
 import {
@@ -53,11 +53,24 @@ interface TaskResult {
 }
 
 interface TaskAgentDetails {
+	runId?: string;
 	results: TaskResult[];
 	concurrency: number;
 	concurrencyCeiling: number;
 	queueLimit: number;
 }
+
+interface TaskRun {
+	id: string;
+	startedAt: number;
+	finishedAt?: number;
+	results: TaskResult[];
+	controllers: Map<number, AbortController>;
+}
+
+const runs: TaskRun[] = [];
+let runSequence = 0;
+const ACTIVE_STATUSES = new Set<TaskResult["status"]>(["queued", "running"]);
 
 const emptyUsage = (): UsageSummary => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 });
 
@@ -88,6 +101,81 @@ function defaultContextEstimate(task: string, complexity: TaskComplexity): numbe
 function positiveEnvironmentInteger(name: string): number | undefined {
 	const value = Number.parseInt(process.env[name] ?? "", 10);
 	return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+function nextRunId(): string {
+	runSequence += 1;
+	return `A${runSequence.toString().padStart(3, "0")}`;
+}
+
+function compactTask(value: string, limit = 58): string {
+	const oneLine = value.replace(/\s+/g, " ").trim();
+	return oneLine.length <= limit ? oneLine : `${oneLine.slice(0, Math.max(1, limit - 1))}…`;
+}
+
+function finishedCount(run: TaskRun): number {
+	return run.results.filter((result) => !ACTIVE_STATUSES.has(result.status)).length;
+}
+
+function runState(run: TaskRun): string {
+	const running = run.results.filter((result) => result.status === "running").length;
+	const queued = run.results.filter((result) => result.status === "queued").length;
+	if (running > 0 || queued > 0) return `${running} running · ${queued} queued · ${finishedCount(run)} finished`;
+	const failed = run.results.filter((result) => result.status !== "completed").length;
+	return failed > 0 ? `${finishedCount(run)} finished · ${failed} need attention` : `${finishedCount(run)} finished`;
+}
+
+function updateAgentUi(ctx: ExtensionContext): void {
+	if (!ctx.hasUI) return;
+	const activeRuns = runs.filter((run) => run.results.some((result) => ACTIVE_STATUSES.has(result.status)));
+	const activeResults = activeRuns.flatMap((run) => run.results);
+	const running = activeResults.filter((result) => result.status === "running").length;
+	const queued = activeResults.filter((result) => result.status === "queued").length;
+	if (activeRuns.length > 0) {
+		ctx.ui.setStatus(
+			"metonia-agents",
+			ctx.ui.theme.fg("accent", `Agents: ${running} running · ${queued} queued`),
+		);
+		ctx.ui.setWidget("metonia-agents", (_tui, theme) => ({
+			render(width: number) {
+				const lines: string[] = [];
+				for (const run of activeRuns) {
+					lines.push(theme.fg("accent", `Subagents ${run.id} · ${runState(run)}`));
+					for (const result of run.results.slice(0, 5)) {
+						const text = `[${result.status}] ${result.role} — ${compactTask(result.task, Math.max(20, width - 22))}`;
+						const color =
+							result.status === "completed"
+								? "success"
+								: result.status === "running"
+									? "accent"
+									: result.status === "failed" || result.status === "blocked"
+										? "error"
+										: "dim";
+						lines.push(theme.fg(color, `  ${text}`));
+					}
+					if (run.results.length > 5) lines.push(theme.fg("dim", `  +${run.results.length - 5} more; open /agents`));
+				}
+				return lines.slice(0, 8);
+			},
+			invalidate() {},
+		}));
+		return;
+	}
+
+	ctx.ui.setWidget("metonia-agents", undefined);
+	const latest = runs.at(-1);
+	ctx.ui.setStatus(
+		"metonia-agents",
+		latest ? ctx.ui.theme.fg("muted", `Agents ${latest.id}: ${runState(latest)}`) : undefined,
+	);
+}
+
+function pruneRunHistory(): void {
+	while (runs.length > 8) {
+		const removable = runs.findIndex((run) => run.finishedAt !== undefined);
+		if (removable < 0) return;
+		runs.splice(removable, 1);
+	}
 }
 
 export function runtimeAgentLimits(): { concurrencyCeiling: number; queueLimit: number } {
@@ -179,6 +267,65 @@ const Params = Type.Object({
 });
 
 export default function taskAgents(pi: ExtensionAPI) {
+	pi.registerCommand("agents", {
+		description: "Inspect subagent runs, results, and cancellation",
+		handler: async (_args, ctx) => {
+			if (!ctx.hasUI) {
+				ctx.ui.notify("/agents requires an interactive UI.", "warning");
+				return;
+			}
+			if (runs.length === 0) {
+				ctx.ui.notify("No subagent runs in this Pi process yet.", "info");
+				return;
+			}
+			const visibleRuns = [...runs].reverse();
+			const runLabels = visibleRuns.map((run) => `${run.id} — ${runState(run)}`);
+			const selectedRunLabel = await ctx.ui.select("Subagent runs", runLabels);
+			if (!selectedRunLabel) return;
+			const selectedRun = visibleRuns[runLabels.indexOf(selectedRunLabel)];
+			if (!selectedRun) return;
+
+			const canCancel = selectedRun.results.some((result) => ACTIVE_STATUSES.has(result.status));
+			const taskLabels = selectedRun.results.map(
+				(result) => `${result.index + 1}. [${result.status}] ${result.role} — ${compactTask(result.task)}`,
+			);
+			if (canCancel) taskLabels.unshift("Cancel unfinished tasks in this run");
+			const selectedTaskLabel = await ctx.ui.select(`Run ${selectedRun.id} · ${runState(selectedRun)}`, taskLabels);
+			if (!selectedTaskLabel) return;
+			if (selectedTaskLabel === "Cancel unfinished tasks in this run") {
+				const confirmed = await ctx.ui.confirm(
+					`Cancel ${selectedRun.id}?`,
+					"Running children will be stopped and queued children will not start.",
+				);
+				if (!confirmed) return;
+				for (const result of selectedRun.results) {
+					if (ACTIVE_STATUSES.has(result.status)) selectedRun.controllers.get(result.index)?.abort("Cancelled from /agents");
+				}
+				updateAgentUi(ctx);
+				ctx.ui.notify(`Cancellation requested for ${selectedRun.id}.`, "info");
+				return;
+			}
+
+			const selectedResult = selectedRun.results[taskLabels.indexOf(selectedTaskLabel) - (canCancel ? 1 : 0)];
+			if (!selectedResult) return;
+			const detail = [
+				`Run: ${selectedRun.id}`,
+				`Status: ${selectedResult.status}`,
+				`Role: ${selectedResult.role}`,
+				`Model: ${selectedResult.model ?? "not selected"}`,
+				`Task: ${selectedResult.task}`,
+				selectedResult.route ? `Route: ${selectedResult.route}` : undefined,
+				selectedResult.blocker ? `Blocker: ${selectedResult.blocker.reason}` : undefined,
+				selectedResult.error ? `Error: ${selectedResult.error}` : undefined,
+				"",
+				selectedResult.output ?? "(no output yet)",
+			]
+				.filter((line): line is string => line !== undefined)
+				.join("\n");
+			await ctx.ui.editor(`Agent ${selectedRun.id}.${selectedResult.index + 1} · Esc to close`, detail);
+		},
+	});
+
 	pi.registerTool({
 		name: "task_agents",
 		label: "Task Agents",
@@ -276,18 +423,36 @@ export default function taskAgents(pi: ExtensionAPI) {
 				role: spec.role?.trim() || "generalist",
 				usage: emptyUsage(),
 			}));
+			const run: TaskRun = {
+				id: nextRunId(),
+				startedAt: Date.now(),
+				results,
+				controllers: new Map(results.map((result) => [result.index, new AbortController()])),
+			};
+			runs.push(run);
+			pruneRunHistory();
 
 			const emit = () => {
 				const completed = results.filter((result) => !["queued", "running"].includes(result.status)).length;
 				onUpdate?.({
 					content: [{ type: "text", text: `Task agents: ${completed}/${results.length} finished.` }],
-					details: { results: structuredClone(results), concurrency, concurrencyCeiling, queueLimit } satisfies TaskAgentDetails,
+					details: {
+						runId: run.id,
+						results: structuredClone(results),
+						concurrency,
+						concurrencyCeiling,
+						queueLimit,
+					} satisfies TaskAgentDetails,
 				});
+				updateAgentUi(ctx);
 			};
+			emit();
 
 			await mapBounded(specs, concurrency, async (spec, index) => {
 				const result = results[index];
-				if (signal?.aborted) {
+				const localController = run.controllers.get(index)!;
+				const taskSignal = signal ? AbortSignal.any([signal, localController.signal]) : localController.signal;
+				if (taskSignal.aborted) {
 					result.status = "aborted";
 					result.error = "Canceled before this queued task started.";
 					emit();
@@ -311,10 +476,10 @@ export default function taskAgents(pi: ExtensionAPI) {
 					result.route = route.reason;
 					result.routeLimitation = route.limitation;
 					const skills = await resolveSkillAllowlist(cwd, spec.skills);
-					if (signal?.aborted) throw new Error("Canceled before worktree preparation.");
+					if (taskSignal.aborted) throw new Error("Canceled before worktree preparation.");
 					lease = await prepareWorktree(cwd, (spec.isolation ?? "process") === "worktree");
 					result.executionCwd = lease.executionCwd;
-					if (signal?.aborted) throw new Error("Canceled before child process start.");
+					if (taskSignal.aborted) throw new Error("Canceled before child process start.");
 
 					const role = result.role;
 					let task = `Role: ${role}\n\n${spec.task}`;
@@ -336,7 +501,7 @@ export default function taskAgents(pi: ExtensionAPI) {
 						"-->",
 						"If meaningful progress requires external input or a state change, use status: blocked and also add blocker, owner, resume_when, and next_action lines.",
 					].join("\n");
-					if (signal?.aborted) throw new Error("Canceled before child process start.");
+					if (taskSignal.aborted) throw new Error("Canceled before child process start.");
 
 					const child = await runPiChild({
 						cwd: lease.executionCwd,
@@ -345,7 +510,7 @@ export default function taskAgents(pi: ExtensionAPI) {
 						thinking: thinkingFor(complexity, route.model.reasoning, ctx.thinkingLevel),
 						readOnly: spec.readOnly ?? false,
 						skills,
-						signal,
+						signal: taskSignal,
 						timeoutSeconds,
 						onStatus: (status) => {
 							result.route = `${route.reason} ${status}`;
@@ -358,7 +523,7 @@ export default function taskAgents(pi: ExtensionAPI) {
 					result.usage = child.usage;
 					result.blocker = child.blocker;
 				} catch (error) {
-					result.status = signal?.aborted ? "aborted" : "failed";
+					result.status = taskSignal.aborted ? "aborted" : "failed";
 					result.error = error instanceof Error ? error.message : String(error);
 				} finally {
 					if (lease) {
@@ -371,6 +536,9 @@ export default function taskAgents(pi: ExtensionAPI) {
 				}
 				return result;
 			});
+			run.finishedAt = Date.now();
+			pruneRunHistory();
+			updateAgentUi(ctx);
 
 			const success = results.filter((result) => result.status === "completed").length;
 			const blocks = results.map((result) => {
@@ -395,7 +563,7 @@ export default function taskAgents(pi: ExtensionAPI) {
 			});
 			return {
 				content: [{ type: "text", text: `${success}/${results.length} task agent(s) completed.\n\n${blocks.join("\n\n---\n\n")}` }],
-				details: { results, concurrency, concurrencyCeiling, queueLimit } satisfies TaskAgentDetails,
+				details: { runId: run.id, results, concurrency, concurrencyCeiling, queueLimit } satisfies TaskAgentDetails,
 				isError: success !== results.length,
 			};
 		},

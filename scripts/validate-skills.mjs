@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { PACKS } from "./install-pack.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const expected = Object.entries(PACKS).flatMap(([pack, names]) => names.map((name) => ({ pack, name })));
+const GLOBAL_SKILLS = ["metonia-interview", "metonia-context"];
+const expected = [
+	...Object.entries(PACKS).flatMap(([pack, names]) => names.map((name) => ({ pack, name }))),
+	...GLOBAL_SKILLS.map((name) => ({ pack: "global", name })),
+];
 const seen = [];
 
 for (const { pack, name } of expected) {
@@ -30,8 +34,9 @@ async function walk(directory) {
 await walk(path.join(root, "skills"));
 
 const manifest = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
-if (!Array.isArray(manifest.pi?.skills) || manifest.pi.skills.length !== 0) {
-	throw new Error("package.json must keep pi.skills empty; skills are agent-space scoped.");
+const expectedGlobalPaths = GLOBAL_SKILLS.map((name) => `./skills/global/${name}`);
+if (!Array.isArray(manifest.pi?.skills) || JSON.stringify(manifest.pi.skills) !== JSON.stringify(expectedGlobalPaths)) {
+	throw new Error(`package.json may autoload only the lightweight global skills: ${expectedGlobalPaths.join(", ")}`);
 }
 
-console.log(`Validated ${seen.length} scoped skills; none are package-autoloaded.`);
+console.log(`Validated ${seen.length} skills; only ${GLOBAL_SKILLS.length} lightweight routing skills are package-autoloaded.`);

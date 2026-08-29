@@ -1,6 +1,6 @@
 {
   "name": "metonia-pi-kit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Scoped Metonia skills and lean Pi agent extensions",
   "type": "module",
   "license": "MIT",
@@ -37,7 +37,10 @@
       "./extensions/task-agents/index.ts",
       "./extensions/metonia-context/index.ts"
     ],
-    "skills": []
+    "skills": [
+      "./skills/global/metonia-interview",
+      "./skills/global/metonia-context"
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",
