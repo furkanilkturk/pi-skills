@@ -9,9 +9,13 @@ permissions:
 
 jobs:
   validate:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate learning skills
-        shell: pwsh
-        run: ./scripts/test-skills.ps1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npm pack --dry-run

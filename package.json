@@ -1,0 +1,62 @@
+{
+  "name": "metonia-pi-kit",
+  "version": "1.0.0",
+  "description": "Scoped Metonia skills and lean Pi agent extensions",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "author": "Furkan Ilkturk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/furkanilkturk/pi-skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/furkanilkturk/pi-skills/issues"
+  },
+  "homepage": "https://github.com/furkanilkturk/pi-skills#readme",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-coding-agent",
+    "obsidian",
+    "agent-skills"
+  ],
+  "files": [
+    "extensions",
+    "scripts",
+    "skills",
+    "src",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/task-agents/index.ts",
+      "./extensions/metonia-context/index.ts"
+    ],
+    "skills": []
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test tests/all.test.ts",
+    "validate:skills": "node scripts/validate-skills.mjs",
+    "validate": "npm run check && npm test && npm run validate:skills"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-agent-core": "^0.84.2",
+    "@earendil-works/pi-ai": "^0.84.2",
+    "@earendil-works/pi-coding-agent": "^0.84.2",
+    "@types/node": "^24.0.0",
+    "typebox": "^1.3.7",
+    "typescript": "^5.9.3"
+  }
+}
