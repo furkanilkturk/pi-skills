@@ -16,9 +16,15 @@ try {
 	const args = parse(process.argv.slice(2));
 	const vault = args.vault ?? process.env.METONIA_VAULT;
 	if (!vault) throw new Error("Pass --vault or set METONIA_VAULT.");
+	if (args.profile && !["coding", "planning", "full"].includes(args.profile)) {
+		throw new Error("--profile must be coding, planning, or full.");
+	}
 	const context = await resolveMetoniaContext({
 		vaultPath: path.resolve(vault),
 		cwd: path.resolve(args.cwd ?? process.cwd()),
+		profile: args.profile ?? "coding",
+		contextNotes: args.notes ? args.notes.split(",").map((note) => note.trim()).filter(Boolean) : undefined,
+		notesOnly: args["notes-only"] === "true",
 	});
 	console.log(formatContextData(context));
 } catch (error) {

@@ -501,21 +501,209 @@ test("resolver returns only the uniquely matched company and project", async (t)
 	const repo = path.join(temp, "repo");
 	await fs.mkdir(projectDir, { recursive: true });
 	await fs.mkdir(repo);
-	await fs.writeFile(path.join(companyDir, "Company.md"), "# Acme\nHow Acme works.");
+	await fs.writeFile(
+		path.join(companyDir, "Company.md"),
+		[
+			"---",
+			"sensitivity: restricted",
+			"---",
+			"# Acme",
+			"## Context capsule",
+			"- Company guardrail.",
+			"## Decisions and improvement queue",
+			"| ID | State | Decision or improvement | Evidence | Planning trigger |",
+			"| --- | --- | --- | --- | --- |",
+			"| ACME-001 | open | Resolve company policy. | Company docs | Before release |",
+			"## Context index",
+			"- [[Context/Operations]] — load when changing operations.",
+			"- [[../invalid]] — malformed legacy link must not break routine retrieval.",
+			"## Full-only company detail",
+			"Do not inject this into routine coding.",
+		].join("\n"),
+	);
+	await fs.mkdir(path.join(companyDir, "Context"));
+	await fs.writeFile(
+		path.join(companyDir, "Context", "Operations.md"),
+		"---\nsensitivity: internal\n---\n# Operations detail\nTargeted company contract.",
+	);
+	await fs.mkdir(path.join(projectDir, "Context"));
+	await fs.writeFile(
+		path.join(projectDir, "Context", "Engineering.md"),
+		"---\nsensitivity: public\n---\n# Engineering detail\nTargeted persistence contract.",
+	);
 	await fs.writeFile(
 		path.join(projectDir, "Project.md"),
-		"---\ntype: project\nrepository: git@github.com:Acme/App.git\n---\n# App\nProject facts.",
+		[
+			"---",
+			"type: project",
+			"repository: git@github.com:Acme/App.git",
+			"sensitivity: internal",
+			"verified_commit: deadbeef",
+			"---",
+			"# App",
+			"## Context capsule",
+			"- Project coding contract.",
+			"## Decisions and improvement queue",
+			"| ID | State | Decision or improvement | Evidence | Planning trigger |",
+			"| --- | --- | --- | --- | --- |",
+			"| APP-001 | deferred | Revisit storage. | src/db.ts | Storage plan |",
+			"## Context index",
+			"| Note | Load when | Sensitivity | Max bytes |",
+			"| --- | --- | --- | --- |",
+			"| [[Context/Engineering]] | Changing persistence | restricted | 128 |",
+			"## Full-only project detail",
+			"Do not inject this into routine coding.",
+		].join("\n"),
 	);
 	await exec("git", ["init"], { cwd: repo });
+	await exec("git", ["config", "user.email", "tests@metonia.invalid"], { cwd: repo });
+	await exec("git", ["config", "user.name", "Metonia Tests"], { cwd: repo });
+	await fs.writeFile(path.join(repo, "README.md"), "fixture");
+	await exec("git", ["add", "README.md"], { cwd: repo });
+	await exec("git", ["commit", "-m", "fixture"], { cwd: repo });
+	const verifiedCommit = (await exec("git", ["rev-parse", "HEAD"], { cwd: repo })).stdout.trim();
+	const projectPage = path.join(projectDir, "Project.md");
+	await fs.writeFile(projectPage, (await fs.readFile(projectPage, "utf8")).replace("deadbeef", verifiedCommit));
 	await exec("git", ["remote", "add", "origin", "https://github.com/acme/app.git"], { cwd: repo });
 
 	const result = await resolveMetoniaContext({ vaultPath: vault, cwd: repo });
 	assert.equal(result.matchedRemote, "github.com/acme/app");
-	assert.match(result.company, /How Acme works/);
-	assert.match(result.project, /Project facts/);
-	assert.equal(Object.keys(result).sort().join(","), "company,companyPath,matchedRemote,project,projectPath,repositoryRoot");
+	assert.match(result.company, /Company guardrail/);
+	assert.match(result.project, /Project coding contract/);
+	assert.doesNotMatch(result.company, /Resolve company policy|Full-only/);
+	assert.doesNotMatch(result.project, /Revisit storage|Full-only/);
+	assert.equal(result.profile, "coding");
+	assert.equal(result.sensitivity, "restricted");
+	assert.equal(result.freshness.status, "fresh");
+	assert.deepEqual(result.legacyFallbacks, []);
+	assert.equal(
+		Object.keys(result).sort().join(","),
+		"company,companyPath,contextBytes,contextNotes,freshness,legacyFallbacks,matchedRemote,notesOnly,profile,project,projectPath,repositoryRoot,sensitivity",
+	);
 	const visible = formatContextData(result);
 	assert.doesNotMatch(visible, new RegExp(temp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+	assert.match(visible, /Profile: coding/);
+
+	await fs.writeFile(path.join(repo, "new-untracked.ts"), "export {};\n");
+	const dirty = await resolveMetoniaContext({ vaultPath: vault, cwd: repo });
+	assert.equal(dirty.freshness.status, "dirty");
+	await exec("git", ["add", "new-untracked.ts"], { cwd: repo });
+	await exec("git", ["commit", "-m", "ahead"], { cwd: repo });
+	const ahead = await resolveMetoniaContext({ vaultPath: vault, cwd: repo });
+	assert.equal(ahead.freshness.status, "ahead");
+
+	const planning = await resolveMetoniaContext({ vaultPath: vault, cwd: repo, profile: "planning" });
+	assert.match(planning.company, /ACME-001/);
+	assert.match(planning.project, /APP-001/);
+	assert.match(planning.project, /Context\/Engineering/);
+	assert.doesNotMatch(planning.project, /Full-only project detail/);
+	const targeted = await resolveMetoniaContext({
+		vaultPath: vault,
+		cwd: repo,
+		profile: "planning",
+		contextNotes: ["Context/Engineering"],
+		notesOnly: true,
+	});
+	assert.equal(targeted.contextNotes.length, 1);
+	assert.equal(targeted.contextNotes[0].sensitivity, "restricted");
+	assert.equal(targeted.company, "");
+	assert.equal(targeted.project, "");
+	assert.match(targeted.contextNotes[0].text, /Targeted persistence contract/);
+	assert.doesNotMatch(targeted.contextNotes[0].text, /sensitivity: public/);
+	const targetedVisible = formatContextData(targeted);
+	assert.match(targetedVisible, /INDEXED CONTEXT DATA: project:Context\/Engineering/);
+	assert.doesNotMatch(targetedVisible, /COMPANY CONTEXT DATA|PROJECT CONTEXT DATA/);
+	await fs.writeFile(projectPage, (await fs.readFile(projectPage, "utf8")).replace("| restricted | 128 |", "| restricted | 10 |"));
+	await assert.rejects(
+		resolveMetoniaContext({
+			vaultPath: vault,
+			cwd: repo,
+			profile: "planning",
+			contextNotes: ["project:Context/Engineering"],
+			notesOnly: true,
+		}),
+		(error: unknown) => error instanceof ContextResolutionError && error.code === "context-budget-exceeded",
+	);
+	const companyTargeted = await resolveMetoniaContext({
+		vaultPath: vault,
+		cwd: repo,
+		profile: "planning",
+		contextNotes: ["company:Context/Operations"],
+		notesOnly: true,
+	});
+	assert.equal(companyTargeted.contextNotes[0].target, "company:Context/Operations");
+	assert.match(companyTargeted.contextNotes[0].text, /Targeted company contract/);
+	await assert.rejects(
+		resolveMetoniaContext({
+			vaultPath: vault,
+			cwd: repo,
+			profile: "planning",
+			contextNotes: ["Context/Invented"],
+		}),
+		(error: unknown) => error instanceof ContextResolutionError && error.code === "invalid-context-note",
+	);
+
+	const full = await resolveMetoniaContext({ vaultPath: vault, cwd: repo, profile: "full" });
+	assert.match(full.company, /Full-only company detail/);
+	assert.match(full.project, /Full-only project detail/);
+
+	await fs.writeFile(projectPage, (await fs.readFile(projectPage, "utf8")).replace(verifiedCommit, "HEAD"));
+	const invalidProvenance = await resolveMetoniaContext({ vaultPath: vault, cwd: repo });
+	assert.equal(invalidProvenance.freshness.status, "unknown");
+	assert.equal(invalidProvenance.freshness.verifiedCommit, undefined);
+});
+
+test("resolver exposes bounded legacy fallback and refuses oversized compact context", async (t) => {
+	const temp = await fs.mkdtemp(path.join(os.tmpdir(), "metonia-context-budget-test-"));
+	t.after(() => fs.rm(temp, { recursive: true, force: true }));
+	const projectDir = path.join(temp, "Work", "Companies", "Acme", "Projects", "App");
+	await fs.mkdir(projectDir, { recursive: true });
+	await fs.writeFile(
+		path.join(temp, "Work", "Companies", "Acme", "Company.md"),
+		"---\nsensitivity: public\n---\n# Acme\nLegacy company context.",
+	);
+	await fs.writeFile(
+		path.join(projectDir, "Project.md"),
+		"---\nrepository: https://github.com/acme/app\nsensitivity: public\n---\n# App\n## Context capsule\n- Small project contract.",
+	);
+
+	const legacy = await resolveMetoniaContext({
+		vaultPath: temp,
+		cwd: temp,
+		remote: "git@github.com:acme/app.git",
+	});
+	assert.deepEqual(legacy.legacyFallbacks, ["company"]);
+	assert.match(formatContextData(legacy), /Legacy fallback: company/);
+	await fs.writeFile(
+		path.join(temp, "Work", "Companies", "Acme", "Company.md"),
+		"---\nsensitivity: internal\n---\n# Acme\nLegacy company context.",
+	);
+	await assert.rejects(
+		resolveMetoniaContext({ vaultPath: temp, cwd: temp, remote: "https://github.com/acme/app" }),
+		(error: unknown) => error instanceof ContextResolutionError && error.code === "legacy-sensitive-context",
+	);
+	await fs.writeFile(
+		path.join(temp, "Work", "Companies", "Acme", "Company.md"),
+		"---\nsensitivity: public\n---\n# Acme\nLegacy company context.",
+	);
+
+	await fs.writeFile(
+		path.join(projectDir, "Project.md"),
+		`---\nrepository: https://github.com/acme/app\nsensitivity: public\n---\n# App\n## Context capsule\n${"x".repeat(17 * 1024)}`,
+	);
+	await assert.rejects(
+		resolveMetoniaContext({ vaultPath: temp, cwd: temp, remote: "https://github.com/acme/app" }),
+		(error: unknown) => error instanceof ContextResolutionError && error.code === "context-budget-exceeded",
+	);
+	await assert.rejects(
+		resolveMetoniaContext({
+			vaultPath: temp,
+			cwd: temp,
+			remote: "https://github.com/acme/app",
+			profile: "typo" as any,
+		}),
+		(error: unknown) => error instanceof ContextResolutionError && error.code === "invalid-profile",
+	);
 });
 
 test("resolver refuses a symlink or junction in the project index", async (t) => {

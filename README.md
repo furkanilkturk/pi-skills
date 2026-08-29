@@ -91,12 +91,19 @@ repository: https://github.com/acme/payments-api.git
 ---
 ```
 
-`metonia_context` normalizes the current repository's configured remotes,
-requires exactly one matching `Project.md`, and returns only that project and
-its parent `Company.md`. The Markdown is explicitly marked as contextual data,
-not as agent instructions, and absolute vault paths are omitted from the
-model-visible result. Symlink/junction roots and index paths are rejected.
-Unknown and ambiguous matches are errors.
+`metonia_context` normalizes the current repository's configured remotes and
+requires exactly one matching `Project.md`. Its default `coding` profile returns
+only the `## Context capsule` sections from that project and its parent company.
+The `planning` profile adds their decision/improvement queues and context
+indexes; `full` explicitly returns both complete canonical notes. Indexed detail
+is never loaded automatically; a planning/full request may add up to three exact
+`project:` or `company:` targets already listed in the matched owner's index.
+Use `notesOnly` for that second targeted call to avoid repeating the base
+Company/Project payload. All results are owner-contained and byte-bounded, marked as contextual
+data rather than instructions, and omit absolute vault paths. The resolver also
+reports advisory `fresh`, `ahead`, `dirty`, `diverged`, or `unknown` status when
+the project records a `verified_commit`. Symlink/junction roots and index paths
+are rejected; unknown and ambiguous matches are errors.
 
 From any Git repository, invoke `/skill:project-learning register-existing` or
 `register-new` to propose its Metonia company/project mapping. After verified
@@ -111,10 +118,17 @@ that requests it must also declare an exact `model`, ordered `modelCandidates`,
 `allowedProviders`, or `allowedModels` trust policy; authentication alone does
 not make a provider appropriate for private company data.
 
+Direct `metonia_context` lookup stays on the session's already selected model.
+Its sensitivity label is the most restrictive classification across Company,
+Project, and requested indexed notes; it is a warning, not a provider allowlist.
+Choose a trusted current provider before sending internal/restricted context.
+Legacy full-note fallback is allowed only for context explicitly classified
+`public`; sensitive or unclassified legacy notes must first gain capsules.
+
 You can inspect the same result outside Pi:
 
 ```bash
-node scripts/resolve-context.mjs --vault /path/to/vault --cwd /path/to/repository
+node scripts/resolve-context.mjs --vault /path/to/vault --cwd /path/to/repository --profile planning --notes "project:Context/Engineering Contracts" --notes-only true
 ```
 
 `METONIA_VAULT` only identifies the index. It does not enable context injection.
