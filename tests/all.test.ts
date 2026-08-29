@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import registerTaskAgents from "../extensions/task-agents/index.ts";
 import { detectMetoniaSpace } from "../extensions/metonia-context/index.ts";
+import registerMetoniaInterview, { orderMetoniaOptions } from "../extensions/metonia-interview/index.ts";
 import { installPack } from "../scripts/install-pack.mjs";
 import { syncMetonia } from "../scripts/sync-metonia.mjs";
 import {
@@ -186,6 +187,56 @@ test("detects Metonia agent spaces from the Pi working directory", () => {
 	});
 	assert.equal(detectMetoniaSpace(path.join(vault, "template", "Learning"), vault).kind, "learning");
 	assert.equal(detectMetoniaSpace(path.resolve("C:/elsewhere"), vault).kind, "external");
+});
+
+test("Metonia interview presents its recommendation first", () => {
+	const ordered = orderMetoniaOptions([
+		{ label: "Manual" },
+		{ label: "Automated", recommended: true },
+		{ label: "Hybrid" },
+	]);
+	assert.deepEqual(ordered.map((option) => option.label), ["Automated", "Manual", "Hybrid"]);
+});
+
+test("Metonia interview returns structured TUI answers without a companion package", async () => {
+	let registered: { execute: (...args: any[]) => Promise<any> } | undefined;
+	registerMetoniaInterview({
+		registerTool(tool: { execute: (...args: any[]) => Promise<any> }) {
+			registered = tool;
+		},
+	} as any);
+	assert.ok(registered);
+	const seenRows: string[][] = [];
+	const result = await registered.execute(
+		"test",
+		{
+			questions: [
+				{
+					id: "storage",
+					question: "Where should the plan live?",
+					options: [
+						{ label: "Repository", description: "Transient execution state" },
+						{ label: "Obsidian", description: "Durable reviewed plan", recommended: true },
+					],
+				},
+			],
+		},
+		undefined,
+		undefined,
+		{
+			hasUI: true,
+			ui: {
+				select: async (_title: string, rows: string[]) => {
+					seenRows.push(rows);
+					return rows[0];
+				},
+				input: async () => undefined,
+			},
+		},
+	);
+	assert.match(seenRows[0][0], /Obsidian \[recommended\]/);
+	assert.deepEqual(result.details.answers, [{ id: "storage", answer: "Obsidian", wasCustom: false }]);
+	assert.equal(result.details.cancelled, false);
 });
 
 test("resolver returns only the uniquely matched company and project", async (t) => {

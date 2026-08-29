@@ -18,7 +18,8 @@ the file currently selected in Obsidian.
 | `video` pack | Research, concept development, and review | No |
 | `task_agents` | Isolated, bounded subagent dispatch with metadata-based model routing | Yes |
 | `metonia_context` | Resolve an external Git repository to its Company and Project notes | Yes |
-| `metonia-interview` | Small decision-interview workflow using Pi's question TUI | Yes |
+| `metonia_interview` | Bundled selectable TUI for consequential decisions | Yes |
+| `metonia-interview` | Small workflow that decides when and how to interview | Yes |
 | `metonia-context` | Navigate agent spaces and durable-knowledge boundaries | Yes |
 
 Only the two small routing skills are package-global. The seven domain skills
@@ -34,19 +35,11 @@ your local user's permissions.
 pi install git:github.com/furkanilkturk/pi-skills
 ```
 
-The package installs two extensions and the two lightweight global routing
+The package installs three extensions and the two lightweight global routing
 skills. It does not change model or authentication settings.
-
-For the selectable `metonia-interview` UI, install the maintained MIT-licensed
-Pi companion extension if it is not already present:
-
-```bash
-pi install npm:@juicesharp/rpiv-ask-user-question
-```
-
-The skill falls back to plain chat questions when the companion is absent. The
-TUI dependency remains separate so it can be upgraded independently rather than
-forked into this package.
+The selectable interview is bundled and uses Pi's own UI API; users do not need
+to install another package. In non-interactive runs, the skill falls back to a
+concise chat question instead of pretending a selector is available.
 
 ## See the current context
 

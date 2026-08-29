@@ -5,7 +5,7 @@ description: Clarify a consequential plan or feature through a short, adaptive M
 
 # Metonia Interview
 
-Use the installed `ask_user_question` tool for structured Pi TUI questions. Ask
+Use the bundled `metonia_interview` tool for structured Pi TUI questions. Ask
 only when an answer changes scope, architecture, risk, cost, ownership, or
 acceptance. Inspect files and documentation first; never ask the user to repeat
 facts that can be discovered safely.
@@ -24,6 +24,5 @@ answers forward and do not ask them again.
 
 Stop when remaining uncertainty can be handled by a stated, reversible
 assumption. Summarize the confirmed goal, decisions, non-goals, acceptance
-criteria, risks, and open questions before acting. If `ask_user_question` is not
-available, fall back to one concise chat question at a time and say that the
-selectable TUI companion is missing.
+criteria, risks, and open questions before acting. If interactive UI is not
+available, fall back to one concise chat question at a time.

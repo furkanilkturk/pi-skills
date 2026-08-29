@@ -73,6 +73,7 @@ export default function metoniaContext(pi: ExtensionAPI) {
 				`Context  ${space.label}`,
 				...skills.map(commandRow),
 				"Command /agents — subagent runs, results, and cancellation",
+				"Tool    metonia_interview — bundled selectable decision UI",
 				"Tool    metonia_context — explicit company/project context lookup",
 				"Tool    task_agents — bounded isolated delegation",
 			];
