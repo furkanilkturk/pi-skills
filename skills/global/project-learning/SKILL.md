@@ -10,6 +10,9 @@ Follow the nearest `AGENTS.md` and limit reads to the matched company/project pl
 explicit evidence sources. Run as a clean, separate curator context after the
 code, tests, and review are complete. Never write or repair code.
 
+Resolve the Metonia vault from `METONIA_VAULT`. Stop if it is missing, invalid,
+or not a vault root; never search arbitrary parent or home directories for one.
+
 ## Choose one mode
 
 - **register-existing:** inspect an existing Git repository, its normalized
@@ -31,9 +34,17 @@ curation workflow.
 ## Resolve context
 
 - Inside the Work space, use the nearest `Company.md` and `Project.md`.
-- From an external repository, normalize its configured Git remotes and match
-  the `repository` (or `repositories`) frontmatter in exactly one `Project.md`.
-- On zero or multiple matches, stop with the candidate paths; never guess.
+- From an external repository, use the current directory unless the user gives
+  another repository path. Normalize its configured Git remotes and match the
+  `repository` (or `repositories`) frontmatter in `Project.md` files.
+- In either registration mode, zero matches is the expected unregistered state:
+  inspect the repository and propose explicit company/project paths and a new
+  remote mapping. If exactly one match exists, report that it is already
+  registered and do not create a duplicate. On multiple matches, stop with the
+  candidate paths.
+- In `propose-update` and ordinary context resolution, require exactly one
+  match. On zero or multiple matches, stop with the candidate paths; never
+  guess.
 - Load only the matched `Project.md` and parent `Company.md` by default.
 
 ## Curate with approval

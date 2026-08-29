@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { PACKS } from "./install-pack.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const GLOBAL_SKILLS = ["metonia-interview", "metonia-context"];
+const GLOBAL_SKILLS = ["metonia-interview", "metonia-context", "project-learning"];
 const expected = [
 	...Object.entries(PACKS).flatMap(([pack, names]) => names.map((name) => ({ pack, name }))),
 	...GLOBAL_SKILLS.map((name) => ({ pack: "global", name })),

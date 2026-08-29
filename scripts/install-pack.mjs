@@ -7,8 +7,12 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 export const PACKS = Object.freeze({
 	learning: ["doc-learning", "video-learning"],
-	work: ["project-learning", "project-planning"],
+	work: ["project-planning"],
 	video: ["video-research", "video-concept", "video-review"],
+});
+
+const RETIRED_PACK_SKILLS = Object.freeze({
+	work: ["project-learning"],
 });
 
 function parseArgs(argv) {
@@ -37,6 +41,9 @@ export async function installPack(pack, target) {
 		if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
 	}
 	await fs.mkdir(targetRoot, { recursive: true });
+	for (const name of RETIRED_PACK_SKILLS[pack] ?? []) {
+		await fs.rm(path.join(targetRoot, name), { recursive: true, force: true });
+	}
 	const installed = [];
 	for (const name of names) {
 		const source = path.join(repoRoot, "skills", pack, name);

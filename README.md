@@ -14,17 +14,19 @@ the file currently selected in Obsidian.
 | Resource | Purpose | Loaded by the Pi package? |
 | --- | --- | --- |
 | `learning` pack | Documents and existing videos → source-backed knowledge | No |
-| `work` pack | Company/project registration, context curation, and durable planning | No |
+| `work` pack | Durable project planning inside the Work space | No |
 | `video` pack | Research, concept development, and review | No |
 | `task_agents` | Isolated, bounded subagent dispatch with metadata-based model routing | Yes |
 | `metonia_context` | Resolve an external Git repository to its Company and Project notes | Yes |
 | `metonia_interview` | Bundled selectable TUI for consequential decisions | Yes |
 | `metonia-interview` | Small workflow that decides when and how to interview | Yes |
 | `metonia-context` | Navigate agent spaces and durable-knowledge boundaries | Yes |
+| `project-learning` | Register projects and curate Company/Project knowledge from any repository | Yes |
 
-Only the two small routing skills are package-global. The seven domain skills
-are copied into the agent space that owns them, so learning, video, and Work
-instructions do not consume every coding session's context.
+The three cross-cutting skills are package-global. Their descriptions are
+discoverable, while full instructions are loaded only when invoked. The six
+domain skills remain in their owning agent spaces, so learning, video, and
+planning instructions do not consume every coding session's context.
 
 ## Install the Pi extensions
 
@@ -35,8 +37,8 @@ your local user's permissions.
 pi install git:github.com/furkanilkturk/pi-skills
 ```
 
-The package installs three extensions and the two lightweight global routing
-skills. It does not change model or authentication settings.
+The package installs three extensions and three global skills. It does not
+change model or authentication settings.
 The selectable interview is bundled and uses Pi's own UI API; users do not need
 to install another package. In non-interactive runs, the skill falls back to a
 concise chat question instead of pretending a selector is available.
@@ -46,11 +48,11 @@ concise chat question instead of pretending a selector is available.
 Run `/metonia` in Pi. It shows the current agent space, every active skill
 command, and the Metonia tools available in that session. Typical discovery is:
 
-| Pi working directory | Domain skills added to the two global skills |
+| Pi working directory | Scoped skills added to the three global skills |
 | --- | --- |
 | External coding repository or vault root | None |
 | `Learning/` or a descendant | `doc-learning`, `video-learning` |
-| `Work/` or a company/project descendant | `project-learning`, `project-planning` |
+| `Work/` or a company/project descendant | `project-planning` |
 | `Studio/Video/` or a descendant | `video-research`, `video-concept`, `video-review` |
 
 Use `/skill:metonia-interview` for the Metonia-specific selectable interview
@@ -72,9 +74,10 @@ To vendor all three packs into a Metonia template:
 node scripts/sync-metonia.mjs --template /path/to/metonia/template
 ```
 
-Only the seven named domain skill directories are replaced. Unrelated skills in the
-target are preserved. The installer rejects targets that do not end in
-`.agents/skills`.
+Only the six named domain skill directories are replaced. Unrelated skills in
+the target are preserved. Updating the Work pack removes the retired scoped
+`project-learning` copy because that skill is now package-global. The installer
+rejects targets that do not end in `.agents/skills`.
 
 ## Company and project context from coding repositories
 
@@ -94,6 +97,12 @@ its parent `Company.md`. The Markdown is explicitly marked as contextual data,
 not as agent instructions, and absolute vault paths are omitted from the
 model-visible result. Symlink/junction roots and index paths are rejected.
 Unknown and ambiguous matches are errors.
+
+From any Git repository, invoke `/skill:project-learning register-existing` or
+`register-new` to propose its Metonia company/project mapping. After verified
+changes, invoke `/skill:project-learning propose-update`. The skill never
+modifies the repository and writes durable vault knowledge only after the
+company, project, remote, target paths, and exact changes are approved.
 
 **Privacy:** invoking `metonia_context`, or setting
 `includeMetoniaContext: true` on `task_agents`, sends the matched notes to the

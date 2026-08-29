@@ -577,14 +577,16 @@ test("pack installer refuses a non-scoped target", async (t) => {
 	await assert.rejects(installPack("learning", temp), /\.agents.*skills/);
 });
 
-test("Metonia sync targets the three agent-space skill directories", async (t) => {
+test("Metonia sync targets scoped skills and removes retired project-learning copy", async (t) => {
 	const template = await fs.mkdtemp(path.join(os.tmpdir(), "metonia-sync-test-"));
 	t.after(() => fs.rm(template, { recursive: true, force: true }));
+	const retired = path.join(template, "Work", ".agents", "skills", "project-learning", "SKILL.md");
+	await fs.mkdir(path.dirname(retired), { recursive: true });
+	await fs.writeFile(retired, "stale scoped copy");
 	await syncMetonia(template);
 	for (const relative of [
 		"Learning/.agents/skills/doc-learning/SKILL.md",
 		"Learning/.agents/skills/video-learning/SKILL.md",
-		"Work/.agents/skills/project-learning/SKILL.md",
 		"Work/.agents/skills/project-planning/SKILL.md",
 		"Studio/Video/.agents/skills/video-research/SKILL.md",
 		"Studio/Video/.agents/skills/video-concept/SKILL.md",
@@ -592,6 +594,7 @@ test("Metonia sync targets the three agent-space skill directories", async (t) =
 	]) {
 		await fs.access(path.join(template, ...relative.split("/")));
 	}
+	await assert.rejects(fs.access(retired));
 });
 
 test("clean detached worktree is removed automatically", async (t) => {

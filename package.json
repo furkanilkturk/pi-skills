@@ -1,6 +1,6 @@
 {
   "name": "metonia-pi-kit",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Scoped Metonia skills and lean Pi agent extensions",
   "type": "module",
   "license": "MIT",
@@ -40,7 +40,8 @@
     ],
     "skills": [
       "./skills/global/metonia-interview",
-      "./skills/global/metonia-context"
+      "./skills/global/metonia-context",
+      "./skills/global/project-learning"
     ]
   },
   "scripts": {
