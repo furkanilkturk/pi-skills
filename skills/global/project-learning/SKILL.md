@@ -42,6 +42,43 @@ project. Use one canonical `repository` plus `repositories` only for additional
 remotes. Never initialize, clone, move, or modify a Git repository in this
 curation workflow.
 
+## Select the discovery model
+
+For `register-existing`, run the deterministic repository inventory first. Then,
+before the costly semantic passes, use `metonia_model_select` when it is
+available unless the user already named an exact `provider/model` for this
+registration. Pass evidence-based context/output estimates. The selector reads
+Pi's authenticated, session-scoped model registry; its `Other` path searches
+every fitting model, including providers or models absent from the shortlist.
+
+- If the user selects **Current agent**, continue locally. Do not create a child
+  merely to repeat the same scan.
+- If the user selects a delegated model, call `task_agents` once with its exact
+  `model` and `allowedModels`, `readOnly: true`, `isolation: "process"`, the
+  repository as `cwd`, and the appropriate complexity. The child may inspect
+  repository evidence but must not write code, vault notes, or temporary files
+  inside the repository.
+- Give the child an explicit evidence contract: inventory provenance; identity
+  and governance; category coverage ledger; product/domain map; runtime and
+  layer flow; concrete package/pattern contracts; delivery/operations; task
+  routing; conflicts and questions. Require exact evidence paths and separate
+  observed facts from interpretations. Do not let the child invoke another
+  model-selection round.
+- Treat the child response as research, not accepted context. The parent checks
+  consequential claims against repository evidence, owns all questions and
+  approval previews, rechecks freshness, and performs any approved vault write.
+- Do not inject existing private Metonia notes into the child merely to register
+  an unregistered repository. If such context is genuinely needed, obey the
+  explicit provider/model trust rules of `task_agents`.
+- If selection is cancelled, unavailable, or no model fits, pause rather than
+  silently authorizing another provider.
+
+Ask once per `register-existing` run. For `register-new`, ask only when the
+repository already contains meaningful implementation that needs semantic
+discovery; an empty or small skeleton does not justify delegation. For
+`propose-update`, reuse the current agent unless the requested refresh is
+comprehensive, expensive, or the user asks to choose another model.
+
 ## Resolve context
 
 - Inside the Work space, use the nearest `Company.md` and `Project.md`.

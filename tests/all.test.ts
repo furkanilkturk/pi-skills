@@ -8,7 +8,10 @@ import { promisify } from "node:util";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import registerTaskAgents, { buildTaskContract } from "../extensions/task-agents/index.ts";
 import { detectMetoniaSpace } from "../extensions/metonia-context/index.ts";
-import registerMetoniaInterview, { orderMetoniaOptions } from "../extensions/metonia-interview/index.ts";
+import registerMetoniaInterview, {
+	orderMetoniaOptions,
+	searchAvailableModels,
+} from "../extensions/metonia-interview/index.ts";
 import { installPack } from "../scripts/install-pack.mjs";
 import { syncMetonia } from "../scripts/sync-metonia.mjs";
 import { buildRepositoryInventory } from "../skills/global/project-learning/scripts/repository-inventory.mjs";
@@ -491,6 +494,177 @@ test("Metonia interview returns structured TUI answers without a companion packa
 	assert.match(seenRows[0][0], /Obsidian \[recommended\]/);
 	assert.deepEqual(result.details.answers, [{ id: "storage", answer: "Obsidian", wasCustom: false }]);
 	assert.equal(result.details.cancelled, false);
+});
+
+test("Metonia model selection searches every fitting authenticated model through Other", async () => {
+	const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+	registerMetoniaInterview({
+		registerTool(tool: { name: string; execute: (...args: any[]) => Promise<any> }) {
+			registered.set(tool.name, tool);
+		},
+	} as any);
+	const selector = registered.get("metonia_model_select");
+	assert.ok(selector);
+
+	const available = [
+		model({ id: "alpha", provider: "a", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "bravo", provider: "b", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "charlie", provider: "c", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "delta", provider: "d", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "echo", provider: "e", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "foxtrot", provider: "f", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "golf", provider: "g", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 1 }),
+		model({ id: "glm-5.3-flash", provider: "opencode-go", reasoning: true, contextWindow: 256_000, maxTokens: 32_000, price: 5 }),
+	];
+	assert.deepEqual(searchAvailableModels(available, "glm 5.3 flash").map((entry) => `${entry.provider}/${entry.id}`), [
+		"opencode-go/glm-5.3-flash",
+	]);
+
+	let selectCall = 0;
+	let initialRows: string[] = [];
+	const result = await selector.execute(
+		"test",
+		{
+			task: "Register the repository in Metonia",
+			complexity: "standard",
+			estimatedContextTokens: 20_000,
+			expectedOutputTokens: 8_000,
+		},
+		undefined,
+		undefined,
+		{
+			hasUI: true,
+			model: available[0],
+			scopedModels: [],
+			modelRegistry: { getAvailable: () => available },
+			ui: {
+				select: async (_title: string, rows: string[]) => {
+					selectCall += 1;
+					if (selectCall === 1) {
+						initialRows = rows;
+						return rows.find((row) => row.startsWith("Other —"));
+					}
+					return rows.find((row) => row.startsWith("opencode-go/glm-5.3-flash"));
+				},
+				input: async () => "glm 5.3 flash",
+			},
+		},
+	);
+	assert.ok(initialRows.some((row) => row.startsWith("Other — search all 8")));
+	assert.ok(!initialRows.some((row) => row.startsWith("opencode-go/glm-5.3-flash")));
+	assert.deepEqual(result.details.selection, {
+		mode: "delegate",
+		model: "opencode-go/glm-5.3-flash",
+		automatic: false,
+		wasOther: true,
+	});
+	assert.deepEqual(result.details.taskAgents, {
+		model: "opencode-go/glm-5.3-flash",
+		allowedModels: ["opencode-go/glm-5.3-flash"],
+		readOnly: true,
+		isolation: "process",
+	});
+	assert.equal(result.details.cancelled, false);
+});
+
+test("Metonia automatic selection stays local when it resolves to the current model", async () => {
+	const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+	registerMetoniaInterview({
+		registerTool(tool: { name: string; execute: (...args: any[]) => Promise<any> }) {
+			registered.set(tool.name, tool);
+		},
+	} as any);
+	const selector = registered.get("metonia_model_select");
+	assert.ok(selector);
+	const current = model({
+		id: "current",
+		provider: "trusted",
+		reasoning: true,
+		contextWindow: 256_000,
+		maxTokens: 32_000,
+		price: 1,
+	});
+	const result = await selector.execute(
+		"test",
+		{ task: "Inspect locally", complexity: "standard", estimatedContextTokens: 20_000, expectedOutputTokens: 8_000 },
+		undefined,
+		undefined,
+		{
+			hasUI: true,
+			model: current,
+			scopedModels: [],
+			modelRegistry: { getAvailable: () => [current] },
+			ui: {
+				select: async (_title: string, rows: string[]) => rows.find((row) => row.startsWith("Automatic —")),
+				input: async () => undefined,
+			},
+		},
+	);
+	assert.deepEqual(result.details.selection, {
+		mode: "current",
+		model: "trusted/current",
+		automatic: true,
+		wasOther: false,
+	});
+	assert.equal(result.details.taskAgents, undefined);
+});
+
+test("Metonia Other search cannot escape the session-scoped model set", async () => {
+	const registered = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+	registerMetoniaInterview({
+		registerTool(tool: { name: string; execute: (...args: any[]) => Promise<any> }) {
+			registered.set(tool.name, tool);
+		},
+	} as any);
+	const selector = registered.get("metonia_model_select");
+	assert.ok(selector);
+	const allowed = model({
+		id: "allowed",
+		provider: "trusted",
+		reasoning: true,
+		contextWindow: 256_000,
+		maxTokens: 32_000,
+		price: 1,
+	});
+	const hidden = model({
+		id: "hidden",
+		provider: "outside-scope",
+		reasoning: true,
+		contextWindow: 256_000,
+		maxTokens: 32_000,
+		price: 1,
+	});
+	let registryCalls = 0;
+	const seenRows: string[][] = [];
+	const result = await selector.execute(
+		"test",
+		{ task: "Respect the session scope", complexity: "standard", estimatedContextTokens: 20_000, expectedOutputTokens: 8_000 },
+		undefined,
+		undefined,
+		{
+			hasUI: true,
+			model: allowed,
+			scopedModels: [{ model: allowed }],
+			modelRegistry: {
+				getAvailable: () => {
+					registryCalls += 1;
+					return [allowed, hidden];
+				},
+			},
+			ui: {
+				select: async (_title: string, rows: string[]) => {
+					seenRows.push(rows);
+					if (seenRows.length === 1) return rows.find((row) => row.startsWith("Other —"));
+					return "Cancel";
+				},
+				input: async () => "outside scope hidden",
+			},
+		},
+	);
+	assert.equal(registryCalls, 0);
+	assert.ok(seenRows.every((rows) => rows.every((row) => !row.includes("outside-scope/hidden"))));
+	assert.equal(result.details.availableModels, 1);
+	assert.equal(result.details.cancelled, true);
 });
 
 test("resolver returns only the uniquely matched company and project", async (t) => {

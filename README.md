@@ -19,6 +19,7 @@ the file currently selected in Obsidian.
 | `task_agents` | Isolated, bounded subagent dispatch with metadata-based model routing | Yes |
 | `metonia_context` | Resolve an external Git repository to its Company and Project notes | Yes |
 | `metonia_interview` | Bundled selectable TUI for consequential decisions | Yes |
+| `metonia_model_select` | Choose a current or delegated model from the authenticated Pi catalog | Yes |
 | `metonia-interview` | Small workflow that decides when and how to interview | Yes |
 | `metonia-context` | Navigate agent spaces and durable-knowledge boundaries | Yes |
 | `project-learning` | Register projects and curate Company/Project knowledge from any repository | Yes |
@@ -110,6 +111,15 @@ From any Git repository, invoke `/skill:project-learning register-existing` or
 changes, invoke `/skill:project-learning propose-update`. The skill never
 modifies the repository and writes durable vault knowledge only after the
 company, project, remote, target paths, and exact changes are approved.
+
+For an existing repository, deterministic inventory runs before model choice.
+The native selector then offers the current agent when it fits, an automatic
+authenticated choice, a bounded exact shortlist, and `Other`, which searches
+every fitting model in Pi's authenticated/session-scoped catalog. Choosing another model
+authorizes only that exact `provider/model` for one read-only discovery child;
+the parent validates its evidence and owns all questions, proposals, and vault
+writes. Empty project skeletons and routine incremental updates stay on the
+current agent unless a costly semantic scan is actually warranted.
 
 **Privacy:** invoking `metonia_context`, or setting
 `includeMetoniaContext: true` on `task_agents`, sends the matched notes to the
