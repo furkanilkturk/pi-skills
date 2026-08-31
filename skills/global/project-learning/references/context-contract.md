@@ -63,7 +63,27 @@ test counts, or prose already available in the repository. Put detailed
 structural, engineering, domain, and operational context in the focused notes
 defined by `repository-atlas.md` and add each to `## Context index` as `Note |
 Load when | Sensitivity | Max bytes`. Do not create empty topic-note
-directories.
+directories. In Markdown tables, omit a redundant wiki-link alias when the note
+name is already the desired label. If an alias is necessary, escape its separator
+as `[[target\|label]]`; an unescaped `|` creates a false table column and breaks
+the link.
+
+When the vault has a Learning concept space and the user approves a cross-space
+write, connect reusable engineering concepts without importing that space into
+routine coding context:
+
+- link the local contract label to one exact `Learning/Concepts/<Concept>` note;
+- add or update one concise project entry under that concept's
+  `## Project applications`, stating the concrete local usage and linking back
+  to the owning project contract/evidence;
+- keep different projects as separate examples; never turn one project's
+  package choice or pattern into a universal rule or company policy;
+- inspect only the exact matched concept notes, not the whole concept map, and
+  do not create a concept for a one-off local convention merely to make every
+  table cell a link.
+
+List Learning targets separately in the approval preview. A Work-only approval
+does not authorize Learning edits.
 
 Project frontmatter should record `context_schema`, `sensitivity`, and the full
 `verified_commit` used for engineering evidence. Freshness metadata is not an
