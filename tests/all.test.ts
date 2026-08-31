@@ -551,7 +551,7 @@ test("resolver returns only the uniquely matched company and project", async (t)
 			"## Context index",
 			"| Note | Load when | Sensitivity | Max bytes |",
 			"| --- | --- | --- | --- |",
-			"| [[Context/Engineering]] | Changing persistence | restricted | 128 |",
+			"| [[Context/Engineering|Engineering contracts]] | Changing persistence | restricted | 128 |",
 			"## Full-only project detail",
 			"Do not inject this into routine coding.",
 		].join("\n"),

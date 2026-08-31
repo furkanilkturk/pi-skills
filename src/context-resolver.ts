@@ -285,7 +285,9 @@ function indexedContextTargets(projectMarkdown: string): Map<string, { target: s
 				const declaredBudget = columns.length >= 4 && /^\d+$/.test(columns.at(-1) ?? "")
 					? Number(columns.at(-1))
 					: undefined;
-				const declaredSensitivity = columns.length >= 4 ? columns[2] : undefined;
+				// Read metadata from the right edge because an Obsidian alias such as
+				// [[Context/Engineering|Engineering contracts]] contains its own pipe.
+				const declaredSensitivity = columns.length >= 4 ? columns.at(-2) : undefined;
 				targets.set(target.toLowerCase(), {
 					target,
 					maxBytes: declaredBudget,
