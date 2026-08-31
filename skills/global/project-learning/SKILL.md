@@ -1,6 +1,6 @@
 ---
 name: project-learning
-description: Register or curate a Git project in Metonia with evidence-backed context capsules, engineering contracts, and reviewed decisions; do not use for general document learning or implementation.
+description: Register or curate a Git project in Metonia with complete tracked-file inventory, a targeted repository atlas, evidence-backed context capsules, engineering contracts, and reviewed decisions; do not use for general document learning or implementation.
 ---
 
 # Project Learning
@@ -13,17 +13,22 @@ code, tests, and review are complete. Never write or repair code.
 Resolve the Metonia vault from `METONIA_VAULT`. Stop if it is missing, invalid,
 or not a vault root; never search arbitrary parent or home directories for one.
 
-For a software repository in `register-existing` or `propose-update`, read
-[references/context-contract.md](references/context-contract.md) before
-inspecting it. That reference defines source precedence, compact context,
-pattern-conflict questions, and the durable improvement queue.
+For a software repository in `register-existing` or a comprehensive
+`propose-update`, read both
+[references/context-contract.md](references/context-contract.md) and
+[references/repository-atlas.md](references/repository-atlas.md) before
+inspecting it. Run `scripts/repository-inventory.mjs` as described there. The
+references define source precedence, complete structural coverage, targeted
+semantic passes, compact retrieval, pattern-conflict questions, and the durable
+improvement queue.
 
 ## Choose one mode
 
-- **register-existing:** inspect an existing Git repository, its normalized
-  remotes, governing instructions, architecture/configuration, representative
-  implementation/tests, and user-provided company facts; then propose a new
-  company/project mapping without changing the repository.
+- **register-existing:** inventory every tracked path in an existing Git
+  repository; inspect its normalized remotes, governing instructions,
+  architecture/configuration, meaningful file families, runtime/domain flows,
+  implementation/tests, delivery/operations, and user-provided company facts;
+  then propose a new company/project mapping without changing the repository.
 - **register-new:** create the company/project note skeleton for a newly
   created repository after its name, owner, canonical remote, outcome, and
   boundaries are known.
@@ -82,8 +87,10 @@ curation workflow.
    proposal; do not consume stale approval.
 8. Preserve stable decision/improvement IDs, disagreement, and supersession;
    never silently overwrite an accepted decision or duplicate the same finding.
-9. Report the company→project links, capsule freshness, optional context index,
-   and unresolved improvements that later planning must consider.
+9. For a mature repository, propose the four-note context set from
+   `repository-atlas.md`; list every exact note path in the approval preview.
+   Report the company→project links, capsule freshness, context index, coverage
+   ledger, and unresolved improvements that later planning must consider.
 
 Capture how the company actually works: mission and customers, domain language,
 decision and approval paths, delivery/release/quality practices, privacy and

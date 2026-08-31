@@ -1,8 +1,9 @@
 # Software project context contract
 
 Use this reference only while registering or curating a software repository.
-The goal is a small, decision-useful context capsule backed by repository
-evidence—not a package inventory, copied manual, or full architecture audit.
+The goal is a small, decision-useful always-loaded capsule backed by complete
+structural discovery and targeted repository evidence—not a package inventory,
+copied manual, or indiscriminate source dump.
 
 ## Classify authority before extracting
 
@@ -23,14 +24,16 @@ verified commit. If code and an old plan differ but authority already establishe
 which wins, record documentation drift as an improvement instead of asking a
 fake architecture question.
 
-## Bound the registration scan
+## Bound each discovery pass, not repository coverage
 
-Registration is context curation, not an unlimited engineering audit. Inspect
-Git remotes, HEAD and dirty-path summary; the nearest `AGENTS.md`; README; one
-manifest/config entry point; up to three documents that the governing
-instructions identify as relevant; and targeted implementation/tests. Stop at
-eight source files or about 12K source tokens. If that is insufficient, finish
-the identity mapping and propose a separate focused audit.
+Registration is context curation, not an indiscriminate engineering audit. Use
+the deterministic inventory and coverage ledger in `repository-atlas.md` to
+account for every tracked path. Inspect Git remotes, HEAD and dirty-path summary;
+governing instructions; README and canonical documents; manifests/configuration;
+composition roots; each meaningful file family; and targeted implementation and
+tests. Work in semantic passes of roughly 8–12 focused sources and summarize
+between passes. Do not stop at a fixed total source count while a nonempty
+category or material subsystem remains unexplained.
 
 Do not inspect `.env` files, credentials, customer exports, incident payloads,
 or unrelated private material. Record `sensitivity` (`public`, `internal`, or
@@ -56,10 +59,11 @@ note. Keep it independently understandable and high leverage:
 
 Prefer one sentence per contract and roughly 5–8 project-specific bullets. Do
 not include semver inventories, exhaustive routes, transient milestones, current
-test counts, or prose already available in the repository. If examples,
-tradeoffs, or evidence would crowd the capsule, put them in one focused note
-under `Context/` and add it to the `## Context index` as `Note | Load when |
-Sensitivity | Max bytes`. Do not create empty topic-note directories.
+test counts, or prose already available in the repository. Put detailed
+structural, engineering, domain, and operational context in the focused notes
+defined by `repository-atlas.md` and add each to `## Context index` as `Note |
+Load when | Sensitivity | Max bytes`. Do not create empty topic-note
+directories.
 
 Project frontmatter should record `context_schema`, `sensitivity`, and the full
 `verified_commit` used for engineering evidence. Freshness metadata is not an

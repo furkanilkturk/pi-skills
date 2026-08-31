@@ -11,6 +11,7 @@ import { detectMetoniaSpace } from "../extensions/metonia-context/index.ts";
 import registerMetoniaInterview, { orderMetoniaOptions } from "../extensions/metonia-interview/index.ts";
 import { installPack } from "../scripts/install-pack.mjs";
 import { syncMetonia } from "../scripts/sync-metonia.mjs";
+import { buildRepositoryInventory } from "../skills/global/project-learning/scripts/repository-inventory.mjs";
 import {
 	ContextResolutionError,
 	formatContextData,
@@ -763,6 +764,61 @@ test("pack installer refuses a non-scoped target", async (t) => {
 	const temp = await fs.mkdtemp(path.join(os.tmpdir(), "metonia-pack-guard-test-"));
 	t.after(() => fs.rm(temp, { recursive: true, force: true }));
 	await assert.rejects(installPack("learning", temp), /\.agents.*skills/);
+});
+
+test("repository inventory accounts for every tracked path deterministically", async (t) => {
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "metonia-repository-inventory-test-"));
+	t.after(() => fs.rm(repo, { recursive: true, force: true }));
+	const fixture: Record<string, string> = {
+		"AGENTS.md": "# Repository rules\n",
+		"docs/architecture.md": "# Architecture\n",
+		"src/routes/api.ts": "export const api = true;\n",
+		"src/lib/server/db.ts": "export const db = true;\n",
+		"src/lib/client/view.ts": "export const view = true;\n",
+		"src/lib/shared/types.ts": "export type Id = string;\n",
+		"tests/app.test.ts": "export {};\n",
+		"deploy/Caddyfile": "example.test\n",
+		"package.json": '{"name":"fixture"}\n',
+		"messages/en.json": "{}\n",
+	};
+	for (const [relative, content] of Object.entries(fixture)) {
+		const target = path.join(repo, ...relative.split("/"));
+		await fs.mkdir(path.dirname(target), { recursive: true });
+		await fs.writeFile(target, content);
+	}
+	await exec("git", ["init"], { cwd: repo });
+	await exec("git", ["config", "user.email", "tests@metonia.invalid"], { cwd: repo });
+	await exec("git", ["config", "user.name", "Metonia Tests"], { cwd: repo });
+	await exec("git", ["add", "."], { cwd: repo });
+	await exec("git", ["commit", "-m", "inventory fixture"], { cwd: repo });
+
+	const inventory = await buildRepositoryInventory(repo);
+	assert.equal(inventory.coverage.trackedFiles, Object.keys(fixture).length);
+	assert.equal(inventory.files.length, Object.keys(fixture).length);
+	assert.equal(inventory.repository.clean, true);
+	assert.match(inventory.coverage.inventoryHash, /^[0-9a-f]{64}$/);
+	assert.deepEqual(inventory.guidanceFiles, ["AGENTS.md"]);
+	const categories = new Map(inventory.coverage.categories.map(({ name, count }) => [name, count]));
+	for (const expected of [
+		"instructions",
+		"documentation",
+		"routes-api",
+		"server-runtime",
+		"client-ui",
+		"shared-contracts",
+		"tests-quality",
+		"delivery-operations",
+		"build-configuration",
+		"localization",
+	]) {
+		assert.equal(categories.get(expected), 1, `${expected} should contain one file`);
+	}
+	assert.ok(inventory.directories.some((directory) => directory.path === "src/lib/server" && directory.totalFiles === 1));
+
+	await fs.writeFile(path.join(repo, "src", "lib", "server", "db.ts"), "export const db = false;\n");
+	const dirtyInventory = await buildRepositoryInventory(repo);
+	assert.equal(dirtyInventory.repository.clean, false);
+	assert.equal(dirtyInventory.coverage.inventoryHash, inventory.coverage.inventoryHash);
 });
 
 test("Metonia sync targets scoped skills and removes retired project-learning copy", async (t) => {
